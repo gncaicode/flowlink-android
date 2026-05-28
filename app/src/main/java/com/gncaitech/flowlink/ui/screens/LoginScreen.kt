@@ -119,8 +119,7 @@ fun LoginScreen(
             // Auto login + forgot password row
             Row(
                 modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { autoLogin = !autoLogin },
+                        .fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
             ) {
@@ -129,6 +128,7 @@ fun LoginScreen(
                     modifier = Modifier
                         .size(18.dp)
                         .clip(RoundedCornerShape(4.dp))
+                        .clickable { autoLogin = !autoLogin }
                         .background(if(autoLogin) MedTeal else Color.Transparent)
                         .border(1.5.dp, if (autoLogin) MedTeal else G500, RoundedCornerShape(4.dp)),
 
@@ -148,6 +148,7 @@ fun LoginScreen(
                 Spacer(Modifier.width(8.dp))
                 Text(
                     "자동 로그인",
+                    modifier = Modifier.clickable { autoLogin = !autoLogin },
                     style = TextStyle(fontSize = 14.sp, color = G700)
                 )
             }
@@ -182,15 +183,8 @@ fun LoginScreen(
                 .padding(bottom = 36.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = Icons.Default.Lock,
-                contentDescription = null,
-                tint = G500,
-                modifier = Modifier.size(14.dp)
-            )
-            Spacer(Modifier.width(6.dp))
             Text(
-                "HIPAA · ISO 27001 보안 인증",
+                "2025 GNCAI",
                 style = TextStyle(
                     fontFamily = MontserratFamily,
                     fontWeight = FontWeight.Medium,
