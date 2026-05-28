@@ -36,6 +36,8 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -63,10 +65,12 @@ fun FlTextField(
     onValueChange: (String) -> Unit = {},
     leadingIcon: ImageVector? = null,
     trailingIcon: ImageVector? = null,
-    trailingLabel: String? = null,
-    isPassword: Boolean = false,
     focused: Boolean = false,
     supportingText: String? = null,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    trailingLabel: String? = null,
+    isPassword: Boolean = false,
+    onTrailingIconClick: (() -> Unit)? = null,
 ) {
     OutlinedTextField(
         value = value,
@@ -75,6 +79,7 @@ fun FlTextField(
         modifier = modifier.fillMaxWidth(),
         singleLine = true,
         visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
+        keyboardOptions = KeyboardOptions(keyboardType = if (isPassword) KeyboardType.Password else keyboardType),
         leadingIcon = leadingIcon?.let {
             {
                 Icon(
@@ -102,12 +107,14 @@ fun FlTextField(
             }
             trailingIcon != null -> {
                 {
-                    Icon(
-                        imageVector = trailingIcon,
-                        contentDescription = null,
-                        tint = Navy,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    IconButton(onClick = { onTrailingIconClick?.invoke() }) {
+                        Icon(
+                            imageVector = trailingIcon,
+                            contentDescription = null,
+                            tint = Navy,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
             else -> null
