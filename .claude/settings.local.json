@@ -5,7 +5,12 @@
       "Bash(mkdir -p /Users/dev/Documents/workspace/android/FlowLink/app/src/main/java/com/flowlink/app/ui/theme)",
       "Bash(mkdir -p /Users/dev/Documents/workspace/android/FlowLink/app/src/main/java/com/flowlink/app/ui/components)",
       "Bash(mkdir -p /Users/dev/Documents/workspace/android/FlowLink/app/src/main/java/com/flowlink/app/ui/screens)",
-      "Bash(mkdir -p /Users/dev/Documents/workspace/android/FlowLink/app/src/main/java/com/flowlink/app/navigation)"
+      "Bash(mkdir -p /Users/dev/Documents/workspace/android/FlowLink/app/src/main/java/com/flowlink/app/navigation)",
+      "Bash(find /Users/dev/Documents/workspace/android/FlowLink/app/src -type f '\\(' -name '*.kt' -o -name '*.xml' -o -name '*.kts' '\\)' -exec sed -i '' 's/com\\\\.flowlink\\\\.app/com.gncaitech.flowlink/g' '{}' +)",
+      "Bash(sed -i '' 's/com\\\\.flowlink\\\\.app/com.gncaitech.flowlink/g' /Users/dev/Documents/workspace/android/FlowLink/app/build.gradle.kts)",
+      "Bash(mkdir -p /Users/dev/Documents/workspace/android/FlowLink/app/src/main/res/font)",
+      "Bash(curl -sL \"https://fonts.gstatic.com/s/montserrat/v26/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtr6Hw5aXo.woff2\" -o test.woff2)",
+      "Bash(curl -sA \"Mozilla/5.0\" \"https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900\")"
     ]
   }
 }

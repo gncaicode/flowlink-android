@@ -5,13 +5,13 @@ plugins {
 }
 
 android {
-    namespace = "com.flowlink.app"
-    compileSdk = 35
+    namespace = "com.gncaitech.flowlink"
+    compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.flowlink.app"
+        applicationId = "com.gncaitech.flowlink"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 34
         versionCode = 1
         versionName = "1.0.0"
     }
@@ -31,6 +31,7 @@ android {
 }
 
 dependencies {
+    implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -41,6 +42,5 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
-    implementation(libs.google.fonts)
     debugImplementation(libs.androidx.ui.tooling)
 }

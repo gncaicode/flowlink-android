@@ -1,0 +1,17 @@
+# Built artifacts
+/build/
+app/build/
+
+# Gradle
+.gradle/
+gradle/wrapper/gradle-wrapper.jar
+local.properties
+
+# Android Studio / IntelliJ
+*.iml
+.idea/
+.DS_Store
+
+# Keystore
+*.jks
+*.keystore

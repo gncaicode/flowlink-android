@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Outer ring -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#E53E3E"
+        android:strokeWidth="4"
+        android:strokeAlpha="0.3"
+        android:pathData="M54,54 m-34,0 a34,34 0 1,0 68,0 a34,34 0 1,0 -68,0" />
+
+    <!-- AVF infinity loop -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#E53E3E"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M32,54 C32,42 46,38 54,46 C62,54 66,58 76,54 C66,50 62,54 54,62 C46,70 32,66 32,54Z" />
+
+    <!-- Network line -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.5"
+        android:strokeAlpha="0.85"
+        android:strokeLineCap="round"
+        android:pathData="M28,54 C36,46 48,50 54,54 C60,58 72,62 80,54" />
+
+    <!-- Center node (Teal) -->
+    <path
+        android:fillColor="#319795"
+        android:pathData="M54,54 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0" />
+
+    <!-- Left endpoint (Red) -->
+    <path
+        android:fillColor="#E53E3E"
+        android:pathData="M32,54 m-2.5,0 a2.5,2.5 0 1,0 5,0 a2.5,2.5 0 1,0 -5,0" />
+
+    <!-- Right endpoint (Red) -->
+    <path
+        android:fillColor="#E53E3E"
+        android:pathData="M76,54 m-2.5,0 a2.5,2.5 0 1,0 5,0 a2.5,2.5 0 1,0 -5,0" />
+</vector>
