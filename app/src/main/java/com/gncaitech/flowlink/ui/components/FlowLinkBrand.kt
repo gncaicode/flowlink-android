@@ -145,6 +145,7 @@ fun FLSymbol(
 fun FLWordmark(
     modifier: Modifier = Modifier,
     fontSize: androidx.compose.ui.unit.TextUnit = 20.sp,
+    linkColor: Color = Navy,
 ) {
     val text = buildAnnotatedString {
         withStyle(
@@ -162,7 +163,7 @@ fun FLWordmark(
             SpanStyle(
                 fontFamily = MontserratFamily,
                 fontWeight = FontWeight.Normal,
-                color = Navy,
+                color = linkColor,
                 fontSize = fontSize,
                 letterSpacing = (0.04f * fontSize.value).sp,
             )

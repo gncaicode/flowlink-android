@@ -10,7 +10,11 @@
       "Bash(sed -i '' 's/com\\\\.flowlink\\\\.app/com.gncaitech.flowlink/g' /Users/dev/Documents/workspace/android/FlowLink/app/build.gradle.kts)",
       "Bash(mkdir -p /Users/dev/Documents/workspace/android/FlowLink/app/src/main/res/font)",
       "Bash(curl -sL \"https://fonts.gstatic.com/s/montserrat/v26/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtr6Hw5aXo.woff2\" -o test.woff2)",
-      "Bash(curl -sA \"Mozilla/5.0\" \"https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900\")"
+      "Bash(curl -sA \"Mozilla/5.0\" \"https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900\")",
+      "Bash(sed -n '57,65p' /Users/dev/Documents/workspace/android/FlowLink/app/src/main/java/com/gncaitech/flowlink/ui/screens/ForgotPasswordScreen.kt)",
+      "Bash(sed -n '138,150p' /Users/dev/Documents/workspace/android/FlowLink/app/src/main/java/com/gncaitech/flowlink/ui/screens/ForgotPasswordScreen.kt)",
+      "Bash(sed -n '50,62p' /Users/dev/Documents/workspace/android/FlowLink/app/src/main/java/com/gncaitech/flowlink/ui/screens/LoginScreen.kt)",
+      "Bash(sed -n '57,70p' /Users/dev/Documents/workspace/android/FlowLink/app/src/main/java/com/gncaitech/flowlink/ui/screens/MeasureScreen.kt)"
     ]
   }
 }
