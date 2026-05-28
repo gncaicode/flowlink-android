@@ -186,10 +186,12 @@ fun OutlinedActionButton(
     leadingIcon: ImageVector? = null,
     color: Color = Navy,
     height: androidx.compose.ui.unit.Dp = 48.dp,
+    enabled: Boolean = true,
 ) {
     OutlinedButton(
         onClick = onClick,
         modifier = modifier.height(height),
+        enabled = enabled,
         shape = RoundedCornerShape(100.dp),
         colors = ButtonDefaults.outlinedButtonColors(contentColor = color),
         border = androidx.compose.foundation.BorderStroke(1.5.dp, color),

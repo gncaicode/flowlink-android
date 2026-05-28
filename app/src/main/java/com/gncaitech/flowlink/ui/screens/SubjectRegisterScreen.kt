@@ -1,5 +1,7 @@
 package com.gncaitech.flowlink.ui.screens
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -8,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,47 +24,69 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.FrontHand
+import androidx.compose.material.icons.filled.Loop
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.gncaitech.flowlink.ui.components.AppBar
-import com.gncaitech.flowlink.ui.components.FLCaption
 import com.gncaitech.flowlink.ui.components.FilledButton
 import com.gncaitech.flowlink.ui.components.FlTextField
 import com.gncaitech.flowlink.ui.components.FormCard
 import com.gncaitech.flowlink.ui.components.OutlinedActionButton
 import com.gncaitech.flowlink.ui.theme.G200
 import com.gncaitech.flowlink.ui.theme.G500
+import com.gncaitech.flowlink.ui.theme.G700
 import com.gncaitech.flowlink.ui.theme.MedTeal
 import com.gncaitech.flowlink.ui.theme.MontserratFamily
 import com.gncaitech.flowlink.ui.theme.Navy
+import com.gncaitech.flowlink.ui.theme.NavyFaint
 import com.gncaitech.flowlink.ui.theme.SnowGray
 import com.gncaitech.flowlink.ui.theme.TealLight
+
+// ─── Step metadata ───────────────────────────────────────────────────────────
+
+private data class StepMeta(val label: String, val cta: String)
+
+private val REGISTER_STEPS = listOf(
+    StepMeta("기본 정보", "다음: AVF 정보"),
+    StepMeta("AVF 정보",  "다음: 운동 처방"),
+    StepMeta("운동 처방", "등록 완료"),
+)
+
+// ─── Screen ──────────────────────────────────────────────────────────────────
 
 @Composable
 fun SubjectRegisterScreen(
     onBack: () -> Unit = {},
     onNext: () -> Unit = {},
 ) {
-    var selectedHistoryOption by remember { mutableIntStateOf(0) }
-    var selectedHand by remember { mutableStateOf("right") }
+    var currentStep by remember { mutableIntStateOf(0) }
+    val meta = REGISTER_STEPS[currentStep]
 
     Column(
         modifier = Modifier
@@ -69,24 +94,25 @@ fun SubjectRegisterScreen(
             .background(SnowGray)
             .statusBarsPadding()
     ) {
-        // AppBar
+        // AppBar — dynamic subtitle + step badge
         AppBar(
             title = "대상자 등록",
-            subtitle = "STEP 2 / 3 · AVF 정보",
+            subtitle = "STEP ${currentStep + 1} / 3 · ${meta.label}",
             onBack = onBack,
             trailingContent = {
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(6.dp))
                         .background(TealLight)
-                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
                     Text(
-                        "2/3",
+                        "${currentStep + 1}/3",
                         style = TextStyle(
                             fontFamily = MontserratFamily,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
+                            fontSize = 11.sp,
+                            letterSpacing = (0.1f * 11f).sp,
                             color = MedTeal,
                         )
                     )
@@ -94,241 +120,540 @@ fun SubjectRegisterScreen(
             }
         )
 
-        // Stepper
-        RegisterStepperBar(currentStep = 1)
+        // Stepper — clickable tabs
+        RegisterStepper(
+            currentStep = currentStep,
+            onStepClick = { currentStep = it }
+        )
 
-        // Scrollable content
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Vascular access card
-            FormCard(
-                caption = "VASCULAR ACCESS",
-                title = "AVF 수술 정보",
+        // Scrollable form — key(currentStep) resets scroll on step change
+        key(currentStep) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp)
+                    .padding(top = 18.dp, bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp)
             ) {
-                FlTextField(
-                    label = "수술일",
-                    value = "2026.05.04",
-                    leadingIcon = Icons.Default.CalendarMonth,
-                )
-                Spacer(Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    FlTextField(
-                        label = "수술 부위",
-                        value = "좌측 요골동맥",
-                        modifier = Modifier.weight(1f),
-                    )
-                    FlTextField(
-                        label = "문합 유형",
-                        value = "단단 문합",
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-                Spacer(Modifier.height(12.dp))
-                FlTextField(
-                    label = "담당 외과의",
-                    value = "김민준 교수 (혈관외과)",
-                    leadingIcon = Icons.Default.Person,
-                )
-                Spacer(Modifier.height(12.dp))
-                FlTextField(
-                    label = "합병증 여부",
-                    value = "없음",
-                    supportingText = "해당사항이 있으면 모두 기록해주세요",
-                )
-            }
-
-            // Baseline metrics card
-            FormCard(
-                caption = "BASELINE METRICS",
-                title = "기저 상태",
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    FlTextField(
-                        label = "혈관 직경",
-                        value = "3.2",
-                        trailingLabel = "mm",
-                        modifier = Modifier.weight(1f),
-                    )
-                    FlTextField(
-                        label = "혈류량",
-                        value = "412",
-                        trailingLabel = "mL/min",
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-
-                Spacer(Modifier.height(16.dp))
-
-                // Previous AVF surgery history
-                FLCaption("이전 AVF 수술 이력", color = G500)
-                Spacer(Modifier.height(8.dp))
-
-                val historyOptions = listOf("없음", "1회", "2회 이상")
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .border(1.dp, G200, RoundedCornerShape(12.dp)),
-                ) {
-                    historyOptions.forEachIndexed { index, option ->
-                        val isSelected = index == selectedHistoryOption
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(40.dp)
-                                .background(if (isSelected) Navy else Color.White)
-                                .clickable { selectedHistoryOption = index }
-                                .padding(vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                option,
-                                style = TextStyle(
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    fontSize = 13.sp,
-                                    color = if (isSelected) Color.White else G500,
-                                )
-                            )
-                        }
-                        if (index < historyOptions.size - 1) {
-                            Box(
-                                modifier = Modifier
-                                    .width(1.dp)
-                                    .height(40.dp)
-                                    .background(G200)
-                            )
-                        }
-                    }
-                }
-
-                Spacer(Modifier.height(16.dp))
-
-                // Dominant hand selection
-                FLCaption("운동 손 (Dominant Hand)", color = G500)
-                Spacer(Modifier.height(8.dp))
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    listOf("left" to "왼손", "right" to "오른손").forEach { (key, label) ->
-                        val isSelected = selectedHand == key
-                        Row(
-                            modifier = Modifier.clickable { selectedHand = key },
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .clip(CircleShape)
-                                    .background(if (isSelected) Navy else Color.White)
-                                    .border(2.dp, if (isSelected) Navy else G200, CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (isSelected) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(8.dp)
-                                            .clip(CircleShape)
-                                            .background(Color.White)
-                                    )
-                                }
-                            }
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                label,
-                                style = TextStyle(
-                                    fontSize = 14.sp,
-                                    color = if (isSelected) Navy else G500,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                )
-                            )
-                        }
-                    }
+                when (currentStep) {
+                    0 -> StepBasicContent()
+                    1 -> StepAVFContent()
+                    2 -> StepPrescriptionContent()
                 }
             }
-
-            Spacer(Modifier.height(16.dp))
         }
 
-        // Bottom CTA
+        // Bottom CTA bar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Color.White)
-                .border(1.dp, G200, RoundedCornerShape(0.dp))
+                .border(0.5.dp, G200, RoundedCornerShape(0.dp))
                 .navigationBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = 16.dp)
+                .padding(top = 12.dp, bottom = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            OutlinedActionButton(
-                text = "이전",
-                leadingIcon = Icons.AutoMirrored.Filled.ArrowBack,
-                modifier = Modifier.fillMaxWidth(0.35f),
-                height = 52.dp,
-                onClick = onBack,
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.35f)
+                    .alpha(if (currentStep == 0) 0.4f else 1f)
+            ) {
+                OutlinedActionButton(
+                    text = "이전",
+                    modifier = Modifier.fillMaxWidth(),
+                    height = 52.dp,
+                    enabled = currentStep > 0,
+                    onClick = { if (currentStep > 0) currentStep-- },
+                )
+            }
             FilledButton(
-                text = "다음: 운동 처방",
-                leadingIcon = Icons.AutoMirrored.Filled.ArrowForward,
+                text = meta.cta,
+                leadingIcon = if (currentStep == 2) Icons.Default.Check
+                              else Icons.AutoMirrored.Filled.ArrowForward,
                 modifier = Modifier.weight(1f),
                 height = 52.dp,
-                onClick = onNext,
+                onClick = { if (currentStep == 2) onNext() else currentStep++ },
             )
         }
     }
 }
 
+// ─── Stepper ─────────────────────────────────────────────────────────────────
+
 @Composable
-private fun RegisterStepperBar(currentStep: Int) {
-    val steps = listOf("기본 정보", "AVF 정보", "운동 처방")
-    Column(
+private fun RegisterStepper(currentStep: Int, onStepClick: (Int) -> Unit) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color.White)
-            .border(1.dp, G200, RoundedCornerShape(0.dp))
-            .padding(horizontal = 20.dp, vertical = 12.dp)
+            .border(0.5.dp, G200, RoundedCornerShape(0.dp))
+            .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Row(modifier = Modifier.fillMaxWidth()) {
-            steps.forEachIndexed { index, stepName ->
-                Column(
-                    modifier = Modifier.weight(1f),
-                    horizontalAlignment = Alignment.CenterHorizontally
+        REGISTER_STEPS.forEachIndexed { i, step ->
+            val done   = i < currentStep
+            val active = i == currentStep
+
+            val barColor by animateColorAsState(
+                targetValue = if (done || active) MedTeal else G200,
+                animationSpec = tween(180), label = "bar$i"
+            )
+            val labelColor by animateColorAsState(
+                targetValue = when { done -> MedTeal; active -> Navy; else -> G500 },
+                animationSpec = tween(180), label = "label$i"
+            )
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onStepClick(i) }
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(4.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(barColor)
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = if (done) "✓ ${step.label}" else step.label,
+                    style = TextStyle(
+                        fontFamily = MontserratFamily,
+                        fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                        fontSize = 11.sp,
+                        letterSpacing = (0.06f * 11f).sp,
+                        color = labelColor,
+                    )
+                )
+            }
+        }
+    }
+}
+
+// ─── Step 1 · 기본 정보 ──────────────────────────────────────────────────────
+
+@Composable
+private fun StepBasicContent() {
+    var sex by remember { mutableIntStateOf(0) }
+
+    FormCard(caption = "PATIENT IDENTITY", title = "환자 기본 정보") {
+        FlTextField(
+            label = "환자 ID",
+            value = "FL-2026-0142",
+            leadingIcon = Icons.Default.Tag,
+            supportingText = "자동 생성됨 · 수정 불가",
+        )
+        Spacer(Modifier.height(16.dp))
+        FlTextField(
+            label = "성명",
+            value = "박정호",
+            leadingIcon = Icons.Default.Person,
+        )
+        Spacer(Modifier.height(16.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            FlTextField(
+                label = "생년월일",
+                value = "1958.07.21",
+                modifier = Modifier.weight(1f),
+            )
+            FlTextField(
+                label = "나이",
+                value = "67",
+                trailingLabel = "세",
+                modifier = Modifier.width(96.dp),
+            )
+        }
+        Spacer(Modifier.height(20.dp))
+        FieldLabel("성별")
+        Spacer(Modifier.height(8.dp))
+        SegmentedControl(
+            options = listOf("남성", "여성"),
+            selectedIndex = sex,
+            onSelect = { sex = it },
+        )
+    }
+
+    FormCard(caption = "CONTACT", title = "연락처") {
+        FlTextField(
+            label = "휴대전화",
+            value = "010-2841-7702",
+            leadingIcon = Icons.Default.Phone,
+        )
+        Spacer(Modifier.height(16.dp))
+        FlTextField(
+            label = "보호자 연락처",
+            value = "010-9221-4418 (배우자)",
+            supportingText = "응급 시 연락",
+        )
+    }
+}
+
+// ─── Step 2 · AVF 정보 ───────────────────────────────────────────────────────
+
+@Composable
+private fun StepAVFContent() {
+    var historyIdx by remember { mutableIntStateOf(0) }
+    var dominantHand by remember { mutableIntStateOf(1) } // 0=왼손, 1=오른손
+
+    FormCard(caption = "VASCULAR ACCESS", title = "AVF 수술 정보") {
+        FlTextField(
+            label = "수술일",
+            value = "2026.05.04",
+            leadingIcon = Icons.Default.CalendarMonth,
+        )
+        Spacer(Modifier.height(16.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            FlTextField(
+                label = "수술 부위",
+                value = "좌측 요골동맥",
+                modifier = Modifier.weight(1f),
+            )
+            FlTextField(
+                label = "문합 유형",
+                value = "단단 문합",
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Spacer(Modifier.height(16.dp))
+        FlTextField(
+            label = "담당 외과의",
+            value = "김민준 교수 (혈관외과)",
+            leadingIcon = Icons.Default.Person,
+        )
+        Spacer(Modifier.height(16.dp))
+        FlTextField(
+            label = "합병증 여부",
+            value = "없음",
+            supportingText = "해당사항이 있으면 모두 기록해주세요",
+        )
+    }
+
+    FormCard(caption = "BASELINE METRICS", title = "기저 상태") {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            FlTextField(
+                label = "혈관 직경",
+                value = "3.2",
+                trailingLabel = "mm",
+                modifier = Modifier.weight(1f),
+            )
+            FlTextField(
+                label = "혈류량",
+                value = "412",
+                trailingLabel = "mL/min",
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Spacer(Modifier.height(20.dp))
+        FieldLabel("이전 AVF 수술 이력")
+        Spacer(Modifier.height(8.dp))
+        SegmentedControl(
+            options = listOf("없음", "1회", "2회 이상"),
+            selectedIndex = historyIdx,
+            onSelect = { historyIdx = it },
+        )
+        Spacer(Modifier.height(20.dp))
+        FieldLabel("운동 손 (Dominant Hand)")
+        Spacer(Modifier.height(8.dp))
+        RadioCardRow(
+            options = listOf("왼손", "오른손"),
+            selectedIndex = dominantHand,
+            onSelect = { dominantHand = it },
+        )
+    }
+}
+
+// ─── Step 3 · 운동 처방 ──────────────────────────────────────────────────────
+
+private data class ExerciseItem(val name: String, val icon: ImageVector, val sets: String, val reps: String)
+
+@Composable
+private fun StepPrescriptionContent() {
+    val exercises = remember {
+        listOf(
+            ExerciseItem("공쥐기 (Ball Squeeze)",      Icons.Default.FrontHand,    "3 sets", "20회"),
+            ExerciseItem("덤벨컬 (Dumbbell Curl)",     Icons.Default.FitnessCenter, "3 sets", "15회"),
+            ExerciseItem("손목 회전 (Wrist Rotation)", Icons.Default.Loop,          "2 sets", "10회"),
+        )
+    }
+    val exerciseSelected = remember { mutableStateListOf(true, true, false) }
+    val chipSelected = remember { mutableStateListOf(true, true, true, false) }
+    val chipLabels = listOf("아침 09:00", "오후 14:00", "저녁 19:00", "+ 추가")
+
+    FormCard(caption = "EXERCISE PROTOCOL", title = "처방 운동 종목") {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            exercises.forEachIndexed { i, ex ->
+                val isSel = exerciseSelected[i]
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (isSel) NavyFaint else Color.White)
+                        .border(
+                            width = if (isSel) 2.dp else 1.dp,
+                            color = if (isSel) Navy else G200,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        .clickable { exerciseSelected[i] = !isSel }
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    // Leading icon container
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(4.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(if (index <= currentStep) MedTeal else G200)
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    val displayName = if (index < currentStep) "✓ $stepName" else stepName
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (isSel) Navy else SnowGray),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = ex.icon,
+                            contentDescription = null,
+                            tint = if (isSel) Color.White else Navy,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    // Name + meta
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            ex.name,
+                            style = TextStyle(
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isSel) Navy else G700,
+                            )
+                        )
+                        Text(
+                            "${ex.sets} · ${ex.reps}",
+                            style = TextStyle(
+                                fontFamily = MontserratFamily,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 11.sp,
+                                letterSpacing = (0.06f * 11f).sp,
+                                color = G500,
+                            )
+                        )
+                    }
+                    // Checkbox
+                    Box(
+                        modifier = Modifier
+                            .size(22.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (isSel) Navy else Color.Transparent)
+                            .border(
+                                width = if (isSel) 0.dp else 1.5.dp,
+                                color = G200,
+                                shape = RoundedCornerShape(6.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isSel) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    FormCard(caption = "SCHEDULE", title = "운동 일정") {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            FlTextField(
+                label = "주당 횟수",
+                value = "5",
+                trailingLabel = "회/주",
+                modifier = Modifier.weight(1f),
+            )
+            FlTextField(
+                label = "총 기간",
+                value = "12",
+                trailingLabel = "주",
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Spacer(Modifier.height(16.dp))
+        FieldLabel("알림 시간")
+        Spacer(Modifier.height(8.dp))
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            chipLabels.forEachIndexed { i, label ->
+                val isSel = chipSelected[i]
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(100.dp))
+                        .background(if (isSel) TealLight else Color.White)
+                        .border(1.dp, if (isSel) MedTeal else G200, RoundedCornerShape(100.dp))
+                        .clickable { chipSelected[i] = !isSel }
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    if (isSel) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            tint = MedTeal,
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
                     Text(
-                        displayName,
+                        label,
                         style = TextStyle(
                             fontFamily = MontserratFamily,
-                            fontWeight = if (index == currentStep) FontWeight.Bold else FontWeight.Normal,
-                            fontSize = 10.sp,
-                            color = if (index <= currentStep) Navy else G500,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 12.sp,
+                            letterSpacing = (0.04f * 12f).sp,
+                            color = if (isSel) MedTeal else G500,
                         )
                     )
                 }
-                if (index < steps.size - 1) {
-                    Spacer(Modifier.width(8.dp))
+            }
+        }
+    }
+}
+
+// ─── Shared primitives ───────────────────────────────────────────────────────
+
+@Composable
+private fun FieldLabel(text: String) {
+    Text(
+        text,
+        style = TextStyle(
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            color = G700,
+        )
+    )
+}
+
+@Composable
+private fun SegmentedControl(
+    options: List<String>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .clip(RoundedCornerShape(100.dp))
+            .border(1.dp, G200, RoundedCornerShape(100.dp))
+    ) {
+        options.forEachIndexed { i, option ->
+            val isSel = i == selectedIndex
+            if (i > 0) {
+                Box(
+                    modifier = Modifier
+                        .width(1.dp)
+                        .fillMaxHeight()
+                        .background(G200)
+                )
+            }
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .background(if (isSel) Navy else Color.White)
+                    .clickable { onSelect(i) },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                if (isSel) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
                 }
+                Text(
+                    option,
+                    style = TextStyle(
+                        fontSize = 14.sp,
+                        fontWeight = if (isSel) FontWeight.Medium else FontWeight.Normal,
+                        color = if (isSel) Color.White else G700,
+                    )
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RadioCardRow(
+    options: List<String>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        options.forEachIndexed { i, label ->
+            val isSel = i == selectedIndex
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(56.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (isSel) NavyFaint else Color.White)
+                    .border(
+                        width = if (isSel) 2.dp else 1.dp,
+                        color = if (isSel) Navy else G200,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    .clickable { onSelect(i) },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(16.dp)
+                        .clip(CircleShape)
+                        .border(2.dp, if (isSel) Navy else G200, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isSel) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(Navy)
+                        )
+                    }
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    label,
+                    style = TextStyle(
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = if (isSel) Navy else G700,
+                    )
+                )
             }
         }
     }
