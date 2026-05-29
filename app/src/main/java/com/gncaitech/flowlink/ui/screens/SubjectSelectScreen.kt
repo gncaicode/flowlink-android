@@ -57,6 +57,12 @@ import com.gncaitech.flowlink.ui.theme.MontserratFamily
 import com.gncaitech.flowlink.ui.theme.Navy
 import com.gncaitech.flowlink.ui.theme.RedLight
 import java.util.Calendar
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import com.gncaitech.flowlink.network.PatientDto
+import com.gncaitech.flowlink.network.PatientApi
+import com.gncaitech.flowlink.network.patientApi
 
 @Composable
 fun SubjectSelectScreen(
@@ -65,6 +71,22 @@ fun SubjectSelectScreen(
     onLogout: () -> Unit = {},
 ) {
     var selectedSubjectIndex by remember { mutableIntStateOf(0) }
+    var patients by remember { mutableStateOf<List<PatientDto>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var searchQuery by remember { mutableStateOf("") }
+
+    LaunchedEffect(Unit) {
+        try {
+            val res = patientApi.getPatients()
+            if (res.isSuccessful) {
+                patients = res.body() ?: emptyList()
+            }
+        } catch (e: Exception) {
+            //실패시 빈 리스트 유지
+        } finally {
+            isLoading = false
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -147,7 +169,7 @@ fun SubjectSelectScreen(
                     .border(1.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(24.dp))
                     .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
-            ) {
+            ){
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = null,
@@ -155,13 +177,21 @@ fun SubjectSelectScreen(
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(Modifier.width(10.dp))
-                Text(
-                    "이름·환자번호로 검색",
-                    style = TextStyle(
-                        fontSize = 14.sp,
-                        color = Color.White.copy(alpha = 0.5f),
-                    ),
-                    modifier = Modifier.weight(1f)
+                androidx.compose.foundation.text.BasicTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    textStyle = TextStyle(fontSize = 14.sp, color = Color.White),
+                    decorationBox = { innerTextField ->
+                        if (searchQuery.isEmpty()) {
+                            Text(
+                                "이름·환자번호로 검색",
+                                style = TextStyle(fontSize = 14.sp, color = Color.White.copy(alpha = 0.5f))
+                            )
+                        }
+                        innerTextField()
+                    }
                 )
                 Icon(
                     imageVector = Icons.Default.FilterList,
@@ -170,6 +200,7 @@ fun SubjectSelectScreen(
                     modifier = Modifier.size(18.dp)
                 )
             }
+
         }
 
         // Content on SnowGray background
@@ -229,20 +260,35 @@ fun SubjectSelectScreen(
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                sampleSubjects.forEachIndexed { index, subject ->
-                    SubjectCard(
-                        name = subject.name,
-                        pid = subject.pid,
-                        age = subject.age,
-                        gender = subject.gender,
-                        surgery = subject.surgery,
-                        maturity = subject.maturity,
-                        program = subject.program,
-                        scheduled = subject.scheduled,
-                        status = subject.status,
-                        selected = index == selectedSubjectIndex,
-                        onClick = { selectedSubjectIndex = index }
-                    )
+                if (isLoading) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp), contentAlignment = Alignment.Center) {
+                        androidx.compose.material3.CircularProgressIndicator()
+                    }
+                } else {
+
+                    val filtered = if (searchQuery.isBlank()) patients
+                                    else patients.filter {
+                                        it.name.contains(searchQuery, ignoreCase = true) ||
+                                                it.pid.contains(searchQuery, ignoreCase = true)
+                                    }
+                    
+                    filtered.forEachIndexed { index, patient ->
+                        SubjectCard(
+                            name = patient.name ?: "",
+                            pid = patient.pid,
+                            age = patient.age ?: 0,
+                            gender = patient.gender ?: "",
+                            surgery = patient.surgeryData ?: "",
+                            program = patient.program ?: "",
+                            scheduled = patient.scheduled ?: "",
+                            status = patient.status ?: "ready",
+                            selected = index == selectedSubjectIndex,
+                            onClick = { selectedSubjectIndex = index }
+                        )
+                    }
                 }
                 Spacer(Modifier.height(16.dp))
             }

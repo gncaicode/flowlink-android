@@ -287,7 +287,6 @@ fun SubjectCard(
     age: Int,
     gender: String,
     surgery: String,
-    maturity: Int,
     program: String,
     scheduled: String,
     status: String,
@@ -298,12 +297,6 @@ fun SubjectCard(
     val bgColor = if (selected) TealLight else Color.White
     val borderColor = if (selected) MedTeal else G200
     val borderWidth = if (selected) 2.dp else 1.dp
-
-    val maturityBarColor = when {
-        maturity < 40 -> ArtRed
-        maturity < 80 -> MedTeal
-        else -> Navy
-    }
 
     Box(
         modifier = modifier
@@ -406,55 +399,19 @@ fun SubjectCard(
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
-
-            // Bottom row: maturity bar + program
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            "혈관 성숙도",
-                            style = TextStyle(fontSize = 10.sp, color = G500)
-                        )
-                        Text(
-                            "$maturity%",
-                            style = TextStyle(
-                                fontFamily = MontserratFamily,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 11.sp,
-                                color = maturityBarColor
-                            )
-                        )
-                    }
-                    Spacer(Modifier.height(4.dp))
-                    LinearProgressIndicator(
-                        progress = { maturity / 100f },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(6.dp)
-                            .clip(RoundedCornerShape(3.dp)),
-                        color = maturityBarColor,
-                        trackColor = G200,
-                        strokeCap = StrokeCap.Round,
-                    )
-                }
-                Spacer(Modifier.width(12.dp))
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(G100)
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        program,
-                        style = TextStyle(fontSize = 10.sp, color = G700, fontWeight = FontWeight.Medium)
-                    )
-                }
-            }
+//            Spacer(Modifier.height(12.dp))
+//
+//            Box(
+//                modifier = Modifier
+//                    .clip(RoundedCornerShape(8.dp))
+//                    .background(G100)
+//                    .padding(horizontal = 8.dp, vertical = 4.dp)
+//            ) {
+//                Text(
+//                    program,
+//                    style = TextStyle(fontSize = 10.sp, color = G700, fontWeight = FontWeight.Medium)
+//                )
+//            }
         }
     }
 }
