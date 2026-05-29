@@ -65,6 +65,8 @@ fun LoginScreen(
     onNavigateToForgotPassword: () -> Unit = {},
     onNavigateToSubjectSelect: () -> Unit = {},
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+
     var userId by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
@@ -175,6 +177,14 @@ fun LoginScreen(
                             try {
                                 val res = authApi.login(LoginRequest(userId, password))
                                 if (res.isSuccessful) {
+                                    if(autoLogin) {
+                                        val prefs = context.getSharedPreferences("fl_prefs",android.content.Context.MODE_PRIVATE)
+                                        prefs.edit()
+                                            .putString("save_email",userId)
+                                            .putString("save_password",password)
+                                            .putBoolean("auto_login",true)
+                                            .apply()
+                                    }
                                     onNavigateToSubjectSelect()
                                 } else {
                                     errorMessage = "아이디 또는 비밀번호가 올바르지 않습니다."

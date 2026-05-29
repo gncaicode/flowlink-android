@@ -5,6 +5,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.gncaitech.flowlink.network.LoginRequest
+import com.gncaitech.flowlink.network.authApi
 import com.gncaitech.flowlink.ui.screens.ForgotPasswordScreen
 import com.gncaitech.flowlink.ui.screens.LoginScreen
 import com.gncaitech.flowlink.ui.screens.MeasureScreen
@@ -22,10 +24,39 @@ fun AppNavigation() {
         startDestination = "splash"
     ) {
         composable("splash") {
+            val context = androidx.compose.ui.platform.LocalContext.current
+
             LaunchedEffect(Unit) {
                 delay(2000)
-                navController.navigate("login") {
-                    popUpTo("splash") { inclusive = true }
+                val prefs = context.getSharedPreferences("fl_prefs",android.content.Context.MODE_PRIVATE)
+                val autoLogin = prefs.getBoolean("auto_login", false)
+                val savedEmail = prefs.getString("save_email", null)
+                val savedPassword = prefs.getString("save_password", null)
+
+                if (autoLogin && savedEmail != null && savedPassword != null) {
+                    try{
+                        val res = authApi.login(LoginRequest(savedEmail,savedPassword))
+                        if(res.isSuccessful) {
+                            navController.navigate("subject_select") {
+                                popUpTo("splash") { inclusive = true }
+                            }
+                        } else {
+                            // 로그인 실패 (비밀번호 변경 등 ) -> 저장 정보 삭제 후 로그인으로
+                            prefs.edit().clear().apply()
+                            navController.navigate("login") {
+                                popUpTo("splash") {inclusive = true}
+                            }
+                        }
+                    } catch (e: Exception) {
+                        //서버 오류
+                        navController.navigate("login") {
+                            popUpTo("splash") { inclusive = true }
+                        }
+                    }
+                } else {
+                    navController.navigate("login") {
+                        popUpTo("splash") { inclusive = true }
+                    }
                 }
             }
             SplashScreen()
