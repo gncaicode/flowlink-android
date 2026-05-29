@@ -53,6 +53,12 @@ import com.gncaitech.flowlink.ui.theme.NavyLight
 import androidx.compose.ui.text.input.KeyboardType
 import com.gncaitech.flowlink.ui.theme.SnowGray
 import androidx.compose.foundation.border
+import androidx.compose.runtime.rememberCoroutineScope
+import com.gncaitech.flowlink.network.LoginRequest
+import com.gncaitech.flowlink.network.LoginResponse
+import com.gncaitech.flowlink.network.authApi
+import com.gncaitech.flowlink.ui.theme.ArtRed
+import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(
@@ -62,9 +68,10 @@ fun LoginScreen(
     var userId by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
-    var autoLogin by remember {
-        mutableStateOf(false)
-    }
+    var autoLogin by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -129,7 +136,7 @@ fun LoginScreen(
                         .size(18.dp)
                         .clip(RoundedCornerShape(4.dp))
                         .clickable { autoLogin = !autoLogin }
-                        .background(if(autoLogin) MedTeal else Color.Transparent)
+                        .background(if (autoLogin) MedTeal else Color.Transparent)
                         .border(1.5.dp, if (autoLogin) MedTeal else G500, RoundedCornerShape(4.dp)),
 
                     contentAlignment = Alignment.Center
@@ -156,12 +163,41 @@ fun LoginScreen(
             Spacer(Modifier.height(32.dp))
 
             FilledButton(
-                text = "로그인",
-                leadingIcon = Icons.AutoMirrored.Filled.ArrowForward,
+                text = if (isLoading) "로그인 중..." else "로그인",
+                leadingIcon = if (isLoading) null else Icons.AutoMirrored.Filled.ArrowForward,
                 modifier = Modifier.fillMaxWidth(),
                 height = 56.dp,
-                onClick = onNavigateToSubjectSelect,
+                onClick = {
+                    if (!isLoading) {
+                        scope.launch {
+                            isLoading = true
+                            errorMessage = null
+                            try {
+                                val res = authApi.login(LoginRequest(userId, password))
+                                if (res.isSuccessful) {
+                                    onNavigateToSubjectSelect()
+                                } else {
+                                    errorMessage = "아이디 또는 비밀번호가 올바르지 않습니다."
+                                }
+                            } catch (e: Exception) {
+                                errorMessage = "서버에 연결할 수 없습니다."
+                            } finally {
+                                isLoading = false
+                            }
+                        }
+                    }
+                },
             )
+
+            errorMessage?.let {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    it,
+                    style = TextStyle(fontSize = 13.sp, color = ArtRed),
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
 
             Spacer(Modifier.height(32.dp))
 

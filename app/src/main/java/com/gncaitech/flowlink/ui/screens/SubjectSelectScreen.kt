@@ -55,6 +55,7 @@ import com.gncaitech.flowlink.ui.theme.MedTeal
 import com.gncaitech.flowlink.ui.theme.MontserratFamily
 import com.gncaitech.flowlink.ui.theme.Navy
 import com.gncaitech.flowlink.ui.theme.RedLight
+import java.util.Calendar
 
 @Composable
 fun SubjectSelectScreen(
@@ -84,7 +85,7 @@ fun SubjectSelectScreen(
                     .padding(vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                FLWordmark(fontSize = 15.sp)
+                FLWordmark(fontSize = 15.sp, linkColor = Color.White)
                 Spacer(Modifier.width(10.dp))
                 Box(
                     modifier = Modifier
@@ -162,27 +163,38 @@ fun SubjectSelectScreen(
                 .background(Color(0xFFF7FAFC))
         ) {
             // Filter chips row
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                FilterChip(label = "오늘", count = "12", active = true)
-                FilterChip(label = "관찰필요", count = "3", active = false, tint = ArtRed, bgTint = RedLight)
-                FilterChip(label = "운동 중", count = "18", active = false)
-                FilterChip(label = "미참여", count = "3", active = false)
-            }
+//            Row(
+//                modifier = Modifier
+//                    .fillMaxWidth()
+//                    .horizontalScroll(rememberScrollState())
+//                    .padding(horizontal = 16.dp, vertical = 14.dp),
+//                horizontalArrangement = Arrangement.spacedBy(8.dp)
+//            ) {
+//                FilterChip(label = "오늘", count = "12", active = true)
+//                FilterChip(label = "관찰필요", count = "3", active = false, tint = ArtRed, bgTint = RedLight)
+//                FilterChip(label = "운동 중", count = "18", active = false)
+//                FilterChip(label = "미참여", count = "3", active = false)
+//            }
 
             // List header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                FLCaption("TODAY · 2026.05.26 (월)")
+                val today = remember {
+                    val cal = Calendar.getInstance()
+                    val dayNames = arrayOf("일","월","화","수","목","금","토")
+                    val dow = dayNames[cal.get(Calendar.DAY_OF_WEEK) - 1]
+                    "%d.%02d.%02d (%s)".format(
+                        cal.get(Calendar.YEAR),
+                        cal.get(Calendar.MONTH) + 1,
+                        cal.get(Calendar.DAY_OF_MONTH),
+                        dow
+                    )
+                }
+                FLCaption("TODAY · $today")
                 Spacer(Modifier.weight(1f))
                 Text(
                     "예정시간순 ↓",

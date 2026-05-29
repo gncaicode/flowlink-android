@@ -37,7 +37,9 @@ fun AppNavigation() {
                     navController.navigate("forgot_password")
                 },
                 onNavigateToSubjectSelect = {
-                    navController.navigate("subject_select")
+                    navController.navigate("subject_select"){
+                        popUpTo("login") { inclusive = true }
+                    }
                 },
             )
         }
