@@ -94,6 +94,11 @@ fun AppNavigation() {
                 onNavigateToMeasure = {
                     navController.navigate("measure")
                 },
+                onLogout = {
+                    navController.navigate("login") {
+                        popUpTo("subject_select") { inclusive = true }
+                    }
+                }
             )
         }
 

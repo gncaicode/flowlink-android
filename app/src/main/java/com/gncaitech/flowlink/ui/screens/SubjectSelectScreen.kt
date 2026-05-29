@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FilterList
@@ -61,6 +62,7 @@ import java.util.Calendar
 fun SubjectSelectScreen(
     onNavigateToRegister: () -> Unit = {},
     onNavigateToMeasure: () -> Unit = {},
+    onLogout: () -> Unit = {},
 ) {
     var selectedSubjectIndex by remember { mutableIntStateOf(0) }
 
@@ -106,6 +108,21 @@ fun SubjectSelectScreen(
                     )
                 }
                 Spacer(Modifier.weight(1f))
+
+                // 로그아웃 버튼 추가
+                val context = androidx.compose.ui.platform.LocalContext.current
+                androidx.compose.material3.IconButton(onClick = {
+                    val prefs = context.getSharedPreferences("fl_prefs", android.content.Context.MODE_PRIVATE)
+                    prefs.edit().clear().apply()
+                    onLogout()
+                }) {
+                    Icon(
+                        imageVector = androidx.compose.material.icons.Icons.AutoMirrored.Filled.Logout,
+                        contentDescription = "로그아웃",
+                        tint = Color.White,
+                        modifier = androidx.compose.ui.Modifier.size(20.dp)
+                    )
+                }
             }
 
             // Title
