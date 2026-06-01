@@ -68,6 +68,8 @@ import com.gncaitech.flowlink.ui.theme.NavyFaint
 import com.gncaitech.flowlink.ui.theme.SnowGray
 import com.gncaitech.flowlink.ui.theme.TealLight
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.text.input.KeyboardType
 
 // ─── Step metadata ───────────────────────────────────────────────────────────
@@ -95,10 +97,20 @@ fun SubjectRegisterScreen(
     var nameError by remember { mutableStateOf(false) }
     var birthDateError by remember { mutableStateOf(false) }
 
+    // Step 2 유효성 검사 에러 상태
+    var surgeryDateError by remember { mutableStateOf(false) }
+    var surgeryLocationError by remember { mutableStateOf(false) }
+    var anastomosisError by remember { mutableStateOf(false) }
+
     // Step 1 입력값 (유효성 검사를 위해 상위로 올림)
     var step1PatientId by remember { mutableStateOf("") }
     var step1Name by remember { mutableStateOf("") }
     var step1BirthDate by remember { mutableStateOf<Long?>(null) }
+
+    // Step 2 입력값 (유효성 검사를 위해 상위로 올림)
+    var step2SurgeryDate by remember { mutableStateOf("") }
+    var step2SurgeryLocation by remember { mutableStateOf("") }
+    var step2Anastomosis by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier
@@ -135,7 +147,33 @@ fun SubjectRegisterScreen(
         // Stepper — clickable tabs
         RegisterStepper(
             currentStep = currentStep,
-            onStepClick = { currentStep = it }
+            onStepClick = { target ->
+                val step1Valid = step1PatientId.isNotBlank() && step1Name.isNotBlank() && step1BirthDate != null
+                val step2Valid = step2SurgeryDate.isNotBlank() && step2SurgeryLocation.isNotBlank() && step2Anastomosis.isNotBlank()
+
+                val canMove = when (target) {
+                    0 -> true
+                    1 -> step1Valid
+                    2 -> step1Valid && step2Valid
+                    else -> false
+                }
+
+                if (canMove) {
+                    currentStep = target
+                } else {
+                    // 에러 표시 트리거
+                    if (!step1Valid) {
+                        patientIdError = step1PatientId.isBlank()
+                        nameError = step1Name.isBlank()
+                        birthDateError = step1BirthDate == null
+                    }
+                    if (target == 2 && step1Valid && !step2Valid) {
+                        surgeryDateError = step2SurgeryDate.isBlank()
+                        surgeryLocationError = step2SurgeryLocation.isBlank()
+                        anastomosisError = step2Anastomosis.isBlank()
+                    }
+                }
+            }
         )
 
         // Scrollable form — key(currentStep) resets scroll on step change
@@ -160,7 +198,17 @@ fun SubjectRegisterScreen(
                         onBirthDateChange = { step1BirthDate = it; birthDateError = false },
                         birthDateError = birthDateError,
                     )
-                    1 -> StepAVFContent()
+                    1 -> StepAVFContent(
+                        surgeryDate = step2SurgeryDate,
+                        onSurgeryDateChange = { step2SurgeryDate = it; surgeryDateError = false },
+                        surgeryDateError = surgeryDateError,
+                        surgeryLocation = step2SurgeryLocation,
+                        onSurgeryLocationChange = { step2SurgeryLocation = it; surgeryLocationError = false },
+                        surgeryLocationError = surgeryLocationError,
+                        anastomosis = step2Anastomosis,
+                        onAnastomosisChange = { step2Anastomosis = it; anastomosisError = false },
+                        anastomosisError = anastomosisError,
+                    )
                     2 -> StepPrescriptionContent()
                 }
             }
@@ -204,6 +252,11 @@ fun SubjectRegisterScreen(
                         nameError = step1Name.isBlank()
                         birthDateError = step1BirthDate == null
                         if (!patientIdError && !nameError && !birthDateError) currentStep++
+                    } else if (currentStep == 1) {
+                        surgeryDateError = step2SurgeryDate.isBlank()
+                        surgeryLocationError = step2SurgeryLocation.isBlank()
+                        anastomosisError = step2Anastomosis.isBlank()
+                        if (!surgeryDateError && !surgeryLocationError && !anastomosisError) currentStep++
                     } else if (currentStep == 2) {
                         onNext()
                     } else {
@@ -363,6 +416,7 @@ private fun StepBasicContent(
                         onValueChange = {},
                         trailingIcon = Icons.Default.CalendarMonth,
                         readOnly = true,
+                        isError = birthDateError
                     )
                     Box(
                         modifier = Modifier
@@ -423,17 +477,85 @@ private fun StepBasicContent(
 
 // ─── Step 2 · AVF 정보 ───────────────────────────────────────────────────────
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-private fun StepAVFContent() {
+private fun StepAVFContent(
+    surgeryDate: String,
+    onSurgeryDateChange: (String) -> Unit,
+    surgeryDateError: Boolean,
+    surgeryLocation: String,
+    onSurgeryLocationChange: (String) -> Unit,
+    surgeryLocationError: Boolean,
+    anastomosis: String,
+    onAnastomosisChange: (String) -> Unit,
+    anastomosisError: Boolean,
+) {
     var historyIdx by remember { mutableIntStateOf(0) }
     var dominantHand by remember { mutableIntStateOf(1) } // 0=왼손, 1=오른손
+    var showSurgeryDatePicker by remember { mutableStateOf(false) }
+    var surgeonName by remember { mutableStateOf("") }
+    var complication by remember { mutableStateOf("") }
+    var diameter by remember { mutableStateOf("") }
+    var flowRate by remember { mutableStateOf("") }
+
+    if (showSurgeryDatePicker) {
+        val datePickerState = androidx.compose.material3.rememberDatePickerState()
+        androidx.compose.material3.DatePickerDialog(
+            onDismissRequest = { showSurgeryDatePicker = false },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let {
+                        val cal = java.util.Calendar.getInstance().apply { timeInMillis = it }
+                        onSurgeryDateChange("%d.%02d.%02d".format(
+                            cal.get(java.util.Calendar.YEAR),
+                            cal.get(java.util.Calendar.MONTH) + 1,
+                            cal.get(java.util.Calendar.DAY_OF_MONTH)
+                        ))
+                    }
+                    showSurgeryDatePicker = false
+                }) { Text("확인") }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showSurgeryDatePicker = false }) {
+                    Text("취소")
+                }
+            }
+        ) {
+            androidx.compose.material3.DatePicker(state = datePickerState)
+        }
+    }
 
     FormCard(caption = "VASCULAR ACCESS", title = "AVF 수술 정보") {
-        FlTextField(
-            label = "수술일",
-            value = "2026.05.04",
-            leadingIcon = Icons.Default.CalendarMonth,
-        )
+        Column {
+            Box {
+                FlTextField(
+                    label = "수술일",
+                    value = surgeryDate,
+                    onValueChange = {},
+                    leadingIcon = Icons.Default.CalendarMonth,
+                    readOnly = true,
+                    isError = surgeryDateError,
+                )
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember {
+                                androidx.compose.foundation.interaction.MutableInteractionSource()
+                            }
+                        ) { showSurgeryDatePicker = true }
+                )
+            }
+            if (surgeryDateError) {
+                Text(
+                    "필수 입력 항목입니다.",
+                    style = TextStyle(fontSize = 11.sp, color = com.gncaitech.flowlink.ui.theme.ArtRed),
+                    modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                )
+            }
+        }
+
         Spacer(Modifier.height(16.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -441,25 +563,33 @@ private fun StepAVFContent() {
         ) {
             FlTextField(
                 label = "수술 부위",
-                value = "좌측 요골동맥",
+                value = surgeryLocation,
+                onValueChange = onSurgeryLocationChange,
                 modifier = Modifier.weight(1f),
+                supportingText = if (surgeryLocationError) "필수 입력 항목입니다." else null,
+                isError = surgeryLocationError,
             )
             FlTextField(
                 label = "문합 유형",
-                value = "단단 문합",
+                value = anastomosis,
+                onValueChange = onAnastomosisChange,
                 modifier = Modifier.weight(1f),
+                supportingText = if (anastomosisError) "필수 입력 항목입니다." else null,
+                isError = anastomosisError,
             )
         }
         Spacer(Modifier.height(16.dp))
         FlTextField(
             label = "담당 외과의",
-            value = "김민준 교수 (혈관외과)",
+            value = surgeonName,
+            onValueChange = { surgeonName =it },
             leadingIcon = Icons.Default.Person,
         )
         Spacer(Modifier.height(16.dp))
         FlTextField(
             label = "합병증 여부",
-            value = "없음",
+            value = complication,
+            onValueChange = { complication = it },
             supportingText = "해당사항이 있으면 모두 기록해주세요",
         )
     }
@@ -471,15 +601,19 @@ private fun StepAVFContent() {
         ) {
             FlTextField(
                 label = "혈관 직경",
-                value = "3.2",
+                value = diameter,
+                onValueChange = { diameter = it },
                 trailingLabel = "mm",
                 modifier = Modifier.weight(1f),
+                keyboardType = KeyboardType.Number
             )
             FlTextField(
                 label = "혈류량",
-                value = "412",
+                value = flowRate,
+                onValueChange = { flowRate = it },
                 trailingLabel = "mL/min",
                 modifier = Modifier.weight(1f),
+                keyboardType =  KeyboardType.Number
             )
         }
         Spacer(Modifier.height(20.dp))
@@ -511,12 +645,10 @@ private fun StepPrescriptionContent() {
         listOf(
             ExerciseItem("공쥐기 (Ball Squeeze)",      Icons.Default.FrontHand,    "3 sets", "20회"),
             ExerciseItem("덤벨컬 (Dumbbell Curl)",     Icons.Default.FitnessCenter, "3 sets", "15회"),
-            ExerciseItem("손목 회전 (Wrist Rotation)", Icons.Default.Loop,          "2 sets", "10회"),
+            ExerciseItem("손목 회전 (Wrist Rotation)",    Icons.Default.Loop,          "2 sets", "10회"),
         )
     }
-    val exerciseSelected = remember { mutableStateListOf(true, true, false) }
-    val chipSelected = remember { mutableStateListOf(true, true, true, false) }
-    val chipLabels = listOf("아침 09:00", "오후 14:00", "저녁 19:00", "+ 추가")
+    val exerciseSelected = remember { mutableStateListOf(false, false, false) }
 
     FormCard(caption = "EXERCISE PROTOCOL", title = "처방 운동 종목") {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -617,45 +749,6 @@ private fun StepPrescriptionContent() {
                 trailingLabel = "주",
                 modifier = Modifier.weight(1f),
             )
-        }
-        Spacer(Modifier.height(16.dp))
-        FieldLabel("알림 시간")
-        Spacer(Modifier.height(8.dp))
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            chipLabels.forEachIndexed { i, label ->
-                val isSel = chipSelected[i]
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(100.dp))
-                        .background(if (isSel) TealLight else Color.White)
-                        .border(1.dp, if (isSel) MedTeal else G200, RoundedCornerShape(100.dp))
-                        .clickable { chipSelected[i] = !isSel }
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    if (isSel) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = null,
-                            tint = MedTeal,
-                            modifier = Modifier.size(12.dp)
-                        )
-                    }
-                    Text(
-                        label,
-                        style = TextStyle(
-                            fontFamily = MontserratFamily,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 12.sp,
-                            letterSpacing = (0.04f * 12f).sp,
-                            color = if (isSel) MedTeal else G500,
-                        )
-                    )
-                }
-            }
         }
     }
 }
