@@ -68,9 +68,13 @@ import com.gncaitech.flowlink.ui.theme.NavyFaint
 import com.gncaitech.flowlink.ui.theme.SnowGray
 import com.gncaitech.flowlink.ui.theme.TealLight
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.text.input.KeyboardType
+import com.gncaitech.flowlink.network.RegisterPatientRequest
+import com.gncaitech.flowlink.network.patientApi
+import kotlinx.coroutines.launch
 
 // ─── Step metadata ───────────────────────────────────────────────────────────
 
@@ -102,15 +106,30 @@ fun SubjectRegisterScreen(
     var surgeryLocationError by remember { mutableStateOf(false) }
     var anastomosisError by remember { mutableStateOf(false) }
 
-    // Step 1 입력값 (유효성 검사를 위해 상위로 올림)
+    // Step 1 입력값
     var step1PatientId by remember { mutableStateOf("") }
     var step1Name by remember { mutableStateOf("") }
     var step1BirthDate by remember { mutableStateOf<Long?>(null) }
+    var step1Age by remember { mutableStateOf("") }
+    var step1Sex by remember { mutableIntStateOf(0) } // 0=남성, 1=여성
 
-    // Step 2 입력값 (유효성 검사를 위해 상위로 올림)
+    // Step 2 입력값
     var step2SurgeryDate by remember { mutableStateOf("") }
     var step2SurgeryLocation by remember { mutableStateOf("") }
     var step2Anastomosis by remember { mutableStateOf("") }
+    var step2SurgeonName by remember { mutableStateOf("") }
+    var step2Diameter by remember { mutableStateOf("") }
+    var step2FlowRate by remember { mutableStateOf("") }
+    var step2HistoryIdx by remember { mutableIntStateOf(0) }
+
+    // Step 3 입력값
+    var step3Program by remember { mutableStateOf("") }
+    var step3WeeklyCount by remember { mutableStateOf("") }
+    var step3TotalWeeks by remember { mutableStateOf("") }
+
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var isSubmitting by remember { mutableStateOf(false) }
+    var submitError by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
@@ -197,6 +216,10 @@ fun SubjectRegisterScreen(
                         birthDate = step1BirthDate,
                         onBirthDateChange = { step1BirthDate = it; birthDateError = false },
                         birthDateError = birthDateError,
+                        age = step1Age,
+                        onAgeChange = { step1Age = it },
+                        sex = step1Sex,
+                        onSexChange = { step1Sex = it },
                     )
                     1 -> StepAVFContent(
                         surgeryDate = step2SurgeryDate,
@@ -208,8 +231,20 @@ fun SubjectRegisterScreen(
                         anastomosis = step2Anastomosis,
                         onAnastomosisChange = { step2Anastomosis = it; anastomosisError = false },
                         anastomosisError = anastomosisError,
+                        surgeonName = step2SurgeonName,
+                        onSurgeonNameChange = { step2SurgeonName = it },
+                        diameter = step2Diameter,
+                        onDiameterChange = { step2Diameter = it },
+                        flowRate = step2FlowRate,
+                        onFlowRateChange = { step2FlowRate = it },
+                        historyIdx = step2HistoryIdx,
+                        onHistoryIdxChange = { step2HistoryIdx = it },
                     )
-                    2 -> StepPrescriptionContent()
+                    2 -> StepPrescriptionContent(
+                        onProgramChange = { step3Program = it },
+                        onWeeklyCountChange = { step3WeeklyCount = it },
+                        onTotalWeeksChange = { step3TotalWeeks = it },
+                    )
                 }
             }
         }
@@ -258,11 +293,61 @@ fun SubjectRegisterScreen(
                         anastomosisError = step2Anastomosis.isBlank()
                         if (!surgeryDateError && !surgeryLocationError && !anastomosisError) currentStep++
                     } else if (currentStep == 2) {
-                        onNext()
+                        scope.launch {
+                            isSubmitting = true
+                            try {
+                                val cal = java.util.Calendar.getInstance()
+                                val today = "%d-%02d-%02d".format(
+                                    cal.get(java.util.Calendar.YEAR),
+                                    cal.get(java.util.Calendar.MONTH) + 1,
+                                    cal.get(java.util.Calendar.DAY_OF_MONTH)
+                                )
+                                val request = com.gncaitech.flowlink.network.RegisterPatientRequest(
+                                    id = "p-${System.currentTimeMillis()}",
+                                    pid = step1PatientId,
+                                    name = step1Name,
+                                    age = step1Age.toIntOrNull() ?: 0,
+                                    gender = if (step1Sex == 0) "M" else "F",
+                                    surgeryDate = step2SurgeryDate,
+                                    surgeryLocation = step2SurgeryLocation,
+                                    anastomosis = step2Anastomosis,
+                                    surgeonName = step2SurgeonName,
+                                    baselineDiameterMm = step2Diameter.toDoubleOrNull() ?: 0.0,
+                                    baselineFlowMlMin = step2FlowRate.toIntOrNull() ?: 0,
+                                    previousAvfHistory = listOf("없음", "1회", "2회 이상")[step2HistoryIdx],
+                                    maturity = 0,
+                                    program = step3Program,
+                                    adherence = 0,
+                                    status = "ready",
+                                    createdAt = today,
+                                )
+                                val res = patientApi.registerPatient(request)
+                                if (res.isSuccessful) {
+                                    onNext()
+                                } else {
+                                    submitError = "서버 오류: ${res.code()}"
+                                }
+                            } catch (e: Exception) {
+                                submitError = e.message ?: "알 수 없는 오류"
+                            } finally {
+                                isSubmitting = false
+                            }
+                        }
                     } else {
                         currentStep++
                     }
                 },
+            )
+        }
+        submitError?.let {
+            Text(
+                it,
+                style = TextStyle(fontSize = 12.sp, color = com.gncaitech.flowlink.ui.theme.ArtRed),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 8.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
         }
     }
@@ -335,10 +420,12 @@ private fun StepBasicContent(
     birthDate: Long?,
     onBirthDateChange: (Long) -> Unit,
     birthDateError: Boolean,
+    age: String,
+    onAgeChange: (String) -> Unit,
+    sex: Int,
+    onSexChange: (Int) -> Unit,
 ) {
-    var sex by remember { mutableIntStateOf(0) }
     var showDatePicker by remember { mutableStateOf(false) }
-    var ageInput by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var guardianPhone by remember { mutableStateOf("") }
 
@@ -348,7 +435,7 @@ private fun StepBasicContent(
             val today = java.util.Calendar.getInstance()
             var calc = today.get(java.util.Calendar.YEAR) - birth.get(java.util.Calendar.YEAR)
             if (today.get(java.util.Calendar.DAY_OF_YEAR) < birth.get(java.util.Calendar.DAY_OF_YEAR)) calc--
-            ageInput = calc.toString()
+            onAgeChange(calc.toString())
         }
     }
 
@@ -439,8 +526,8 @@ private fun StepBasicContent(
             }
             FlTextField(
                 label = "나이",
-                value = ageInput,
-                onValueChange = { ageInput = it },
+                value = age,
+                onValueChange = onAgeChange,
                 modifier = Modifier.width(104.dp),
                 trailingLabel = "세",
                 keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
@@ -452,7 +539,7 @@ private fun StepBasicContent(
         SegmentedControl(
             options = listOf("남성", "여성"),
             selectedIndex = sex,
-            onSelect = { sex = it },
+            onSelect = onSexChange,
         )
     }
 
@@ -489,14 +576,20 @@ private fun StepAVFContent(
     anastomosis: String,
     onAnastomosisChange: (String) -> Unit,
     anastomosisError: Boolean,
+    surgeonName: String,
+    onSurgeonNameChange: (String) -> Unit,
+    diameter: String,
+    onDiameterChange: (String) -> Unit,
+    flowRate: String,
+    onFlowRateChange: (String) -> Unit,
+    historyIdx: Int,
+    onHistoryIdxChange: (Int) -> Unit,
 ) {
-    var historyIdx by remember { mutableIntStateOf(0) }
     var dominantHand by remember { mutableIntStateOf(1) } // 0=왼손, 1=오른손
     var showSurgeryDatePicker by remember { mutableStateOf(false) }
-    var surgeonName by remember { mutableStateOf("") }
+    var anastomosisExpanded by remember { mutableStateOf(false) }
+    var anastomosisOptions = listOf("단단 문합","단측 문합","측측 문합")
     var complication by remember { mutableStateOf("") }
-    var diameter by remember { mutableStateOf("") }
-    var flowRate by remember { mutableStateOf("") }
 
     if (showSurgeryDatePicker) {
         val datePickerState = androidx.compose.material3.rememberDatePickerState()
@@ -569,20 +662,44 @@ private fun StepAVFContent(
                 supportingText = if (surgeryLocationError) "필수 입력 항목입니다." else null,
                 isError = surgeryLocationError,
             )
-            FlTextField(
-                label = "문합 유형",
-                value = anastomosis,
-                onValueChange = onAnastomosisChange,
+
+            @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+            androidx.compose.material3.ExposedDropdownMenuBox(
+                expanded = anastomosisExpanded,
+                onExpandedChange = { anastomosisExpanded = it },
                 modifier = Modifier.weight(1f),
-                supportingText = if (anastomosisError) "필수 입력 항목입니다." else null,
-                isError = anastomosisError,
-            )
+            ) {
+                FlTextField(
+                    label = "문합 유형",
+                    value = anastomosis,
+                    onValueChange = {},
+                    readOnly = true,
+                    trailingIcon = androidx.compose.material.icons.Icons.Default.ArrowDropDown,
+                    modifier = Modifier.menuAnchor(androidx.compose.material3.MenuAnchorType.PrimaryEditable),
+                    supportingText = if (anastomosisError) "필수 입력 항목입니다." else null,
+                    isError = anastomosisError,
+                )
+                ExposedDropdownMenu(
+                    expanded = anastomosisExpanded,
+                    onDismissRequest = { anastomosisExpanded = false },
+                ){
+                    anastomosisOptions.forEach { option ->
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text(option) },
+                            onClick = {
+                                onAnastomosisChange(option)
+                                anastomosisExpanded = false
+                            })
+                    }
+                }
+            }
+
         }
         Spacer(Modifier.height(16.dp))
         FlTextField(
             label = "담당 외과의",
             value = surgeonName,
-            onValueChange = { surgeonName =it },
+            onValueChange = onSurgeonNameChange,
             leadingIcon = Icons.Default.Person,
         )
         Spacer(Modifier.height(16.dp))
@@ -602,7 +719,7 @@ private fun StepAVFContent(
             FlTextField(
                 label = "혈관 직경",
                 value = diameter,
-                onValueChange = { diameter = it },
+                onValueChange = onDiameterChange,
                 trailingLabel = "mm",
                 modifier = Modifier.weight(1f),
                 keyboardType = KeyboardType.Number
@@ -610,10 +727,10 @@ private fun StepAVFContent(
             FlTextField(
                 label = "혈류량",
                 value = flowRate,
-                onValueChange = { flowRate = it },
+                onValueChange = onFlowRateChange,
                 trailingLabel = "mL/min",
                 modifier = Modifier.weight(1f),
-                keyboardType =  KeyboardType.Number
+                keyboardType = KeyboardType.Number
             )
         }
         Spacer(Modifier.height(20.dp))
@@ -622,7 +739,7 @@ private fun StepAVFContent(
         SegmentedControl(
             options = listOf("없음", "1회", "2회 이상"),
             selectedIndex = historyIdx,
-            onSelect = { historyIdx = it },
+            onSelect = onHistoryIdxChange,
         )
         Spacer(Modifier.height(20.dp))
         FieldLabel("운동 손 (Dominant Hand)")
@@ -640,7 +757,11 @@ private fun StepAVFContent(
 private data class ExerciseItem(val name: String, val icon: ImageVector, val sets: String, val reps: String)
 
 @Composable
-private fun StepPrescriptionContent() {
+private fun StepPrescriptionContent(
+    onProgramChange: (String) -> Unit,
+    onWeeklyCountChange: (String) -> Unit,
+    onTotalWeeksChange: (String) -> Unit,
+) {
     val exercises = remember {
         listOf(
             ExerciseItem("공쥐기 (Ball Squeeze)",      Icons.Default.FrontHand,    "3 sets", "20회"),
@@ -649,6 +770,13 @@ private fun StepPrescriptionContent() {
         )
     }
     val exerciseSelected = remember { mutableStateListOf(false, false, false) }
+    var weeklyCount by remember { mutableStateOf("") }
+    var totalWeeks by remember { mutableStateOf("") }
+
+    androidx.compose.runtime.LaunchedEffect(exerciseSelected.toList()) {
+        val selected = exercises.filterIndexed { i, _ -> exerciseSelected[i] }
+        onProgramChange(selected.joinToString(", ") { it.name })
+    }
 
     FormCard(caption = "EXERCISE PROTOCOL", title = "처방 운동 종목") {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -739,15 +867,19 @@ private fun StepPrescriptionContent() {
         ) {
             FlTextField(
                 label = "주당 횟수",
-                value = "5",
+                value = weeklyCount,
+                onValueChange = { weeklyCount = it; onWeeklyCountChange(it) },
                 trailingLabel = "회/주",
                 modifier = Modifier.weight(1f),
+                keyboardType = KeyboardType.Number,
             )
             FlTextField(
                 label = "총 기간",
-                value = "12",
+                value = totalWeeks,
+                onValueChange = { totalWeeks = it; onTotalWeeksChange(it) },
                 trailingLabel = "주",
                 modifier = Modifier.weight(1f),
+                keyboardType = KeyboardType.Number
             )
         }
     }
