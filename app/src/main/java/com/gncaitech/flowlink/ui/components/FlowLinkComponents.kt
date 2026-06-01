@@ -71,12 +71,19 @@ fun FlTextField(
     trailingLabel: String? = null,
     isPassword: Boolean = false,
     onTrailingIconClick: (() -> Unit)? = null,
+    readOnly: Boolean = false,
+    onClick: (() -> Unit)? = null,
+    isError: Boolean = false,
 ) {
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
+        readOnly = readOnly,
         label = { Text(label, fontSize = 13.sp) },
-        modifier = modifier.fillMaxWidth(),
+        isError = isError,
+        modifier = modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier),
         singleLine = true,
         visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
         keyboardOptions = KeyboardOptions(keyboardType = if (isPassword) KeyboardType.Password else keyboardType),
@@ -119,7 +126,7 @@ fun FlTextField(
             }
             else -> null
         },
-        supportingText = supportingText?.let { { Text(it, fontSize = 11.sp, color = G500) } },
+        supportingText = supportingText?.let { { Text(it, fontSize = 11.sp, color = if (isError) ArtRed else G500) } },
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = Navy,
             unfocusedBorderColor = G200,

@@ -67,6 +67,8 @@ import com.gncaitech.flowlink.ui.theme.Navy
 import com.gncaitech.flowlink.ui.theme.NavyFaint
 import com.gncaitech.flowlink.ui.theme.SnowGray
 import com.gncaitech.flowlink.ui.theme.TealLight
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.ui.text.input.KeyboardType
 
 // ─── Step metadata ───────────────────────────────────────────────────────────
 
@@ -87,6 +89,16 @@ fun SubjectRegisterScreen(
 ) {
     var currentStep by remember { mutableIntStateOf(0) }
     val meta = REGISTER_STEPS[currentStep]
+
+    // Step 1 유효성 검사 에러 상태
+    var patientIdError by remember { mutableStateOf(false) }
+    var nameError by remember { mutableStateOf(false) }
+    var birthDateError by remember { mutableStateOf(false) }
+
+    // Step 1 입력값 (유효성 검사를 위해 상위로 올림)
+    var step1PatientId by remember { mutableStateOf("") }
+    var step1Name by remember { mutableStateOf("") }
+    var step1BirthDate by remember { mutableStateOf<Long?>(null) }
 
     Column(
         modifier = Modifier
@@ -137,7 +149,17 @@ fun SubjectRegisterScreen(
                 verticalArrangement = Arrangement.spacedBy(18.dp)
             ) {
                 when (currentStep) {
-                    0 -> StepBasicContent()
+                    0 -> StepBasicContent(
+                        patientId = step1PatientId,
+                        onPatientIdChange = { step1PatientId = it; patientIdError = false },
+                        patientIdError = patientIdError,
+                        name = step1Name,
+                        onNameChange = { step1Name = it; nameError = false },
+                        nameError = nameError,
+                        birthDate = step1BirthDate,
+                        onBirthDateChange = { step1BirthDate = it; birthDateError = false },
+                        birthDateError = birthDateError,
+                    )
                     1 -> StepAVFContent()
                     2 -> StepPrescriptionContent()
                 }
@@ -150,6 +172,7 @@ fun SubjectRegisterScreen(
                 .fillMaxWidth()
                 .background(Color.White)
                 .border(0.5.dp, G200, RoundedCornerShape(0.dp))
+                .imePadding()
                 .navigationBarsPadding()
                 .padding(horizontal = 16.dp)
                 .padding(top = 12.dp, bottom = 14.dp),
@@ -175,7 +198,18 @@ fun SubjectRegisterScreen(
                               else Icons.AutoMirrored.Filled.ArrowForward,
                 modifier = Modifier.weight(1f),
                 height = 52.dp,
-                onClick = { if (currentStep == 2) onNext() else currentStep++ },
+                onClick = {
+                    if (currentStep == 0) {
+                        patientIdError = step1PatientId.isBlank()
+                        nameError = step1Name.isBlank()
+                        birthDateError = step1BirthDate == null
+                        if (!patientIdError && !nameError && !birthDateError) currentStep++
+                    } else if (currentStep == 2) {
+                        onNext()
+                    } else {
+                        currentStep++
+                    }
+                },
             )
         }
     }
@@ -236,38 +270,126 @@ private fun RegisterStepper(currentStep: Int, onStepClick: (Int) -> Unit) {
 
 // ─── Step 1 · 기본 정보 ──────────────────────────────────────────────────────
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-private fun StepBasicContent() {
+private fun StepBasicContent(
+    patientId: String,
+    onPatientIdChange: (String) -> Unit,
+    patientIdError: Boolean,
+    name: String,
+    onNameChange: (String) -> Unit,
+    nameError: Boolean,
+    birthDate: Long?,
+    onBirthDateChange: (Long) -> Unit,
+    birthDateError: Boolean,
+) {
     var sex by remember { mutableIntStateOf(0) }
+    var showDatePicker by remember { mutableStateOf(false) }
+    var ageInput by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
+    var guardianPhone by remember { mutableStateOf("") }
+
+    androidx.compose.runtime.LaunchedEffect(birthDate) {
+        birthDate?.let {
+            val birth = java.util.Calendar.getInstance().apply { timeInMillis = it }
+            val today = java.util.Calendar.getInstance()
+            var calc = today.get(java.util.Calendar.YEAR) - birth.get(java.util.Calendar.YEAR)
+            if (today.get(java.util.Calendar.DAY_OF_YEAR) < birth.get(java.util.Calendar.DAY_OF_YEAR)) calc--
+            ageInput = calc.toString()
+        }
+    }
+
+    val birthDateText = remember(birthDate) {
+        birthDate?.let {
+            val cal = java.util.Calendar.getInstance().apply { timeInMillis = it }
+            "%d.%02d.%02d".format(
+                cal.get(java.util.Calendar.YEAR),
+                cal.get(java.util.Calendar.MONTH) + 1,
+                cal.get(java.util.Calendar.DAY_OF_MONTH)
+            )
+        } ?: ""
+    }
+
+    if (showDatePicker) {
+        val datePickerState = androidx.compose.material3.rememberDatePickerState()
+        androidx.compose.material3.DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { onBirthDateChange(it) }
+                    showDatePicker = false
+                }) {
+                    Text("확인")
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showDatePicker = false }) {
+                    Text("취소")
+                }
+            }
+        ) {
+            androidx.compose.material3.DatePicker(state = datePickerState)
+        }
+    }
 
     FormCard(caption = "PATIENT IDENTITY", title = "환자 기본 정보") {
         FlTextField(
             label = "환자 ID",
-            value = "FL-2026-0142",
+            value = patientId,
+            onValueChange = onPatientIdChange,
             leadingIcon = Icons.Default.Tag,
-            supportingText = "자동 생성됨 · 수정 불가",
+            supportingText = if (patientIdError) "필수 입력 항목입니다." else "병원 환자 번호 입력",
+            isError = patientIdError
         )
         Spacer(Modifier.height(16.dp))
         FlTextField(
             label = "성명",
-            value = "박정호",
+            value = name,
+            onValueChange = onNameChange,
             leadingIcon = Icons.Default.Person,
+            supportingText = if (nameError) "필수 입력 항목입니다." else null,
+            isError = nameError
         )
         Spacer(Modifier.height(16.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            FlTextField(
-                label = "생년월일",
-                value = "1958.07.21",
-                modifier = Modifier.weight(1f),
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Box {
+                    FlTextField(
+                        label = "생년월일",
+                        value = birthDateText,
+                        onValueChange = {},
+                        trailingIcon = Icons.Default.CalendarMonth,
+                        readOnly = true,
+                    )
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clickable(
+                                indication = null,
+                                interactionSource = remember {
+                                    androidx.compose.foundation.interaction.MutableInteractionSource()
+                                }
+                            ) { showDatePicker = true }
+                    )
+                }
+                if (birthDateError) {
+                    Text(
+                        "필수 입력 항목입니다.",
+                        style = TextStyle(fontSize = 11.sp, color = com.gncaitech.flowlink.ui.theme.ArtRed),
+                        modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                    )
+                }
+            }
             FlTextField(
                 label = "나이",
-                value = "67",
+                value = ageInput,
+                onValueChange = { ageInput = it },
+                modifier = Modifier.width(104.dp),
                 trailingLabel = "세",
-                modifier = Modifier.width(96.dp),
+                keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
             )
         }
         Spacer(Modifier.height(20.dp))
@@ -283,14 +405,18 @@ private fun StepBasicContent() {
     FormCard(caption = "CONTACT", title = "연락처") {
         FlTextField(
             label = "휴대전화",
-            value = "010-2841-7702",
+            value = phone,
+            onValueChange = { phone = it },
             leadingIcon = Icons.Default.Phone,
+            keyboardType = KeyboardType.Phone,
         )
         Spacer(Modifier.height(16.dp))
         FlTextField(
             label = "보호자 연락처",
-            value = "010-9221-4418 (배우자)",
+            value = guardianPhone,
+            onValueChange = { guardianPhone = it },
             supportingText = "응급 시 연락",
+            keyboardType = KeyboardType.Phone,
         )
     }
 }
