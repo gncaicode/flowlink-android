@@ -1,6 +1,8 @@
 package com.gncaitech.flowlink.ml
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Matrix
 import android.os.SystemClock
 import androidx.camera.core.ImageProxy
 import com.google.mediapipe.framework.image.BitmapImageBuilder
@@ -41,7 +43,17 @@ class HandLandmarkDetector(
 
     fun detect(imageProxy: ImageProxy) {
         val bitmap = imageProxy.toBitmap()
-        val mpImage = BitmapImageBuilder(bitmap).build()
+        val rotationDegrees = imageProxy.imageInfo.rotationDegrees
+
+        // CameraX 이미지는 센서 기준(가로)으로 오므로 화면 방향에 맞게 회전
+        val rotatedBitmap = if (rotationDegrees != 0) {
+            val matrix = Matrix().apply { postRotate(rotationDegrees.toFloat()) }
+            Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+        } else {
+            bitmap
+        }
+
+        val mpImage = BitmapImageBuilder(rotatedBitmap).build()
         handLandmarker?.detectAsync(mpImage, SystemClock.uptimeMillis())
         imageProxy.close()
     }
