@@ -2,10 +2,13 @@ package com.gncaitech.flowlink.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.gncaitech.flowlink.network.LoginRequest
+import com.gncaitech.flowlink.network.PatientDto
 import com.gncaitech.flowlink.network.authApi
 import com.gncaitech.flowlink.ui.screens.ForgotPasswordScreen
 import com.gncaitech.flowlink.ui.screens.LoginScreen
@@ -14,10 +17,16 @@ import com.gncaitech.flowlink.ui.screens.SplashScreen
 import com.gncaitech.flowlink.ui.screens.SubjectRegisterScreen
 import com.gncaitech.flowlink.ui.screens.SubjectSelectScreen
 import kotlinx.coroutines.delay
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
+
+    //NavHost 바로 위에 추가
+    var selectedPatient by remember { mutableStateOf<PatientDto?>(null) }
 
     NavHost(
         navController = navController,
@@ -91,7 +100,8 @@ fun AppNavigation() {
                 onNavigateToRegister = {
                     navController.navigate("subject_register")
                 },
-                onNavigateToMeasure = {
+                onNavigateToMeasure = { patient ->
+                    selectedPatient = patient
                     navController.navigate("measure")
                 },
                 onLogout = {
@@ -111,6 +121,7 @@ fun AppNavigation() {
 
         composable("measure") {
             MeasureScreen(
+                patient = selectedPatient,
                 onClose = { navController.popBackStack() }
             )
         }

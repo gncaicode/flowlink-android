@@ -54,6 +54,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.gncaitech.flowlink.network.PatientDto
 import com.gncaitech.flowlink.ui.components.MetricChip
 import com.gncaitech.flowlink.ui.components.RightActionBtn
 import com.gncaitech.flowlink.ui.theme.ArtRed
@@ -72,7 +73,10 @@ private val FgFaint     = Color.White.copy(alpha = 0.40f)
 private val FgLabel     = Color.White.copy(alpha = 0.55f)
 
 @Composable
-fun MeasureScreen(onClose: () -> Unit = {}) {
+fun MeasureScreen(
+    patient: PatientDto? = null,
+    onClose: () -> Unit = {},
+) {
 
     val target     = 15
     val totalSets  = 3
@@ -87,6 +91,10 @@ fun MeasureScreen(onClose: () -> Unit = {}) {
     val repDone  = reps >= target
     val progress = seconds.toFloat() / setSeconds
     val mmss     = { s: Int -> "%02d:%02d".format(s / 60, s % 60) }
+
+    val patientName = patient?.name ?: "-"
+    val patientPid = patient?.pid ?: "-"
+    val initial = patientName.take(1)
 
     // Running timer — cancelled automatically when paused changes to true
     LaunchedEffect(paused) {
@@ -217,7 +225,7 @@ fun MeasureScreen(onClose: () -> Unit = {}) {
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        "김",
+                        initial,
                         style = TextStyle(
                             fontFamily = MontserratFamily,
                             fontWeight = FontWeight.Bold,
@@ -228,7 +236,7 @@ fun MeasureScreen(onClose: () -> Unit = {}) {
                 }
                 Column {
                     Text(
-                        "김선영",
+                        patientName,
                         style = TextStyle(
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 12.sp,
@@ -236,7 +244,7 @@ fun MeasureScreen(onClose: () -> Unit = {}) {
                         )
                     )
                     Text(
-                        "P-2026-04812",
+                        patientPid,
                         style = TextStyle(
                             fontFamily = MontserratFamily,
                             fontSize = 9.sp,
