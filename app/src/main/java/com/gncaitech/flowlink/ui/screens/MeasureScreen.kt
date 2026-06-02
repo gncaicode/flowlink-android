@@ -77,6 +77,10 @@ import com.gncaitech.flowlink.ml.HandLandmarkDetector
 import java.util.concurrent.Executors
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
+import com.gncaitech.flowlink.network.patientApi
+import androidx.compose.runtime.rememberCoroutineScope
+import com.gncaitech.flowlink.network.SessionRequest
+import kotlinx.coroutines.launch
 
 // Glass HUD tokens
 private val GlassFill   = Color(0x66000000)  // rgba(0,0,0,0.40)
@@ -130,6 +134,7 @@ fun MeasureScreen(
             }
         )
     }
+    val scope = rememberCoroutineScope()
 
     DisposableEffect(Unit) {
         onDispose {
@@ -684,6 +689,36 @@ fun MeasureScreen(
                         .clip(RoundedCornerShape(28.dp))
                         .background(if (repDone) MedTeal else ArtRed)
                         .clickable {
+
+                            val today = java.time.LocalDate
+                                .now()
+                                .toString()
+                            val feedback = when {
+                                reps >= target -> "perfect"
+                                reps >= target / 2 -> "minor"
+                                else -> "major"
+                            }
+
+                            val req = SessionRequest(
+                                id = "${patient?.id ?: "unknown"}-set${currentSet}-${System.currentTimeMillis()}",
+                                patientId = patient?.id ?: "unknown",
+                                date = today,
+                                kind = "grip",
+                                repsCompleted = reps,
+                                repsTarget = target,
+                                postureScore = 0,
+                                durationSec = seconds,
+                                feedback = feedback
+                            )
+
+                            //백그라운드에서 저장 (실패해도 진행)
+                            scope.launch {
+                                try {
+                                    patientApi.saveSession(req)
+                                } catch (_: Exception) {
+                                }
+                            }
+
                             if (currentSet < totalSets) {
                                 currentSet++
                                 reps = 0
@@ -692,6 +727,7 @@ fun MeasureScreen(
                                 // 마지막 세트 완료 -> 세션 종료
                                 onFinish()
                             }
+
                         },
                     contentAlignment = Alignment.Center
                 ) {

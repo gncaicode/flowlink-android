@@ -40,12 +40,27 @@ data class RegisterPatientRequest(
     val createdAt: String,
 )
 
+data class SessionRequest(
+    val id: String,
+    val patientId: String,
+    val date: String,
+    val kind: String, // grip
+    val repsCompleted: Int,
+    val repsTarget: Int,
+    val postureScore: Int, // 0 (자세 피드백 미구현)
+    val durationSec: Int,
+    val feedback: String, //perfect minor major
+)
+
 interface PatientApi {
     @GET("api/patients")
     suspend fun getPatients():Response<List<PatientDto>>
 
     @POST("api/patients")
     suspend fun registerPatient(@Body body: RegisterPatientRequest): Response<Unit>
+
+    @POST("api/sessions")
+    suspend fun saveSession(@Body body: SessionRequest):Response<Unit>
 }
 
 val patientApi: PatientApi = Retrofit.Builder()
