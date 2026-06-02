@@ -71,6 +71,10 @@ import com.gncaitech.flowlink.ui.theme.MontserratFamily
 import com.gncaitech.flowlink.ui.theme.Navy
 import com.gncaitech.flowlink.ui.theme.NavyFaint
 import kotlinx.coroutines.delay
+import androidx.camera.core.ImageAnalysis
+import androidx.compose.runtime.DisposableEffect
+import com.gncaitech.flowlink.ml.HandLandmarkDetector
+import java.util.concurrent.Executors
 
 // Glass HUD tokens
 private val GlassFill   = Color(0x66000000)  // rgba(0,0,0,0.40)
@@ -85,6 +89,7 @@ fun MeasureScreen(
     patient: PatientDto? = null,
     onClose: () -> Unit = {},
 ) {
+    val context = LocalContext.current
 
     val target     = 15
     val totalSets  = 3
@@ -96,6 +101,20 @@ fun MeasureScreen(
     var paused     by remember { mutableStateOf(false) }
     var hand       by remember { mutableStateOf("right") }
     var lensFacing by remember { mutableIntStateOf(CameraSelector.LENS_FACING_FRONT) }
+    var landmarks  by remember { mutableStateOf<List<Pair<Float, Float>>>(emptyList()) }
+
+    val executor = remember { Executors.newSingleThreadExecutor() }
+    val detector = remember(context) {
+        HandLandmarkDetector(context) { hands ->
+            landmarks = hands.firstOrNull() ?: emptyList()
+        }
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            detector.close()
+            executor.shutdown()
+        }
+    }
 
     val repDone  = reps >= target
     val progress = seconds.toFloat() / setSeconds
@@ -139,8 +158,13 @@ fun MeasureScreen(
                 val cameraSelector = CameraSelector.Builder()
                     .requireLensFacing(lensFacing)
                     .build()
+                val imageAnalysis = ImageAnalysis.Builder()
+                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                    .build()
+                    .also { it.setAnalyzer(executor) { imageProxy -> detector.detect(imageProxy) } }
+
                 cameraProvider.unbindAll()
-                cameraProvider.bindToLifecycle(lifecycleOwner, cameraSelector, preview)
+                cameraProvider.bindToLifecycle(lifecycleOwner, cameraSelector, preview, imageAnalysis)
             }, ContextCompat.getMainExecutor(context))
         }
 
@@ -151,7 +175,11 @@ fun MeasureScreen(
 
         // z1 · Alignment guide + AI hand skeleton
         AlignmentCirclesOverlay(modifier = Modifier.fillMaxSize())
-        HandLandmarkCanvas(modifier = Modifier.fillMaxSize())
+        HandLandmarkCanvas(
+            modifier = Modifier.fillMaxSize(),
+            landmarks = landmarks,
+            isFrontCamera = lensFacing == CameraSelector.LENS_FACING_FRONT
+        )
 
         // ── Top bar (top: 12) ──────────────────────────────────────────
         Row(
@@ -373,9 +401,9 @@ fun MeasureScreen(
                                 .clip(RoundedCornerShape(4.dp))
                                 .background(
                                     when {
-                                        n < currentSet  -> MedTeal
+                                        n < currentSet -> MedTeal
                                         n == currentSet -> ArtRed
-                                        else            -> Color.White.copy(alpha = 0.15f)
+                                        else -> Color.White.copy(alpha = 0.15f)
                                     }
                                 ),
                             contentAlignment = Alignment.Center
@@ -709,61 +737,114 @@ private fun SetBox(number: Int, done: Boolean = false, current: Boolean = false)
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun HandLandmarkCanvas(modifier: Modifier = Modifier) {
+private fun HandLandmarkCanvas(
+    modifier: Modifier = Modifier,
+    landmarks: List<Pair<Float, Float>> = emptyList(),
+    isFrontCamera: Boolean = true
+) {
     Canvas(modifier = modifier) {
-        val sw = size.width
-        val sh = size.height
-        val sx = sw / 412f
-        val sy = sh / 828f
+        if (landmarks.size == 21) {
+            //실시간 랜드마크 사용
+            val pts = landmarks.map { (nx, ny) ->
+                val x = if (isFrontCamera) (1f - nx) * size.width else nx * size.width
+                Offset(x, ny * size.height)
+            }
 
-        fun p(x: Float, y: Float) = Offset(x * sx, y * sy)
-
-        val wrist = p(206f, 600f)
-        val palm  = p(206f, 510f)
-
-        // Finger joints (clenched fist)
-        val fingers = listOf(
-            listOf(p(160f,525f), p(148f,480f), p(168f,448f)),
-            listOf(p(170f,478f), p(175f,438f), p(185f,420f)),
-            listOf(p(206f,468f), p(212f,425f), p(218f,415f)),
-            listOf(p(238f,478f), p(244f,438f), p(246f,425f)),
-            listOf(p(256f,515f), p(262f,478f), p(258f,458f)),
-        )
-
-        val boneColor  = MedTeal.copy(alpha = 0.90f)
-        val strokeW    = 1.8f * minOf(sx, sy) * 5f
-
-        // Wrist to palm
-        drawLine(boneColor, wrist, palm, strokeWidth = strokeW, cap = StrokeCap.Round)
-
-        // Finger bones
-        for (f in fingers) {
-            drawLine(boneColor, palm,  f[0], strokeWidth = strokeW, cap = StrokeCap.Round)
-            drawLine(boneColor, f[0],  f[1], strokeWidth = strokeW, cap = StrokeCap.Round)
-            drawLine(boneColor, f[1],  f[2], strokeWidth = strokeW, cap = StrokeCap.Round)
-        }
-
-        // Joints
-        val allJoints = fingers.flatten() + listOf(wrist, palm)
-        for (j in allJoints) {
-            drawCircle(MedTeal.copy(alpha = 0.22f), radius = 6f * minOf(sx,sy) * 3f, center = j)
-            drawCircle(MedTeal,                     radius = 3.5f * minOf(sx,sy) * 3f, center = j)
-        }
-
-        // AVF marker
-        val avfPt = p(155f, 685f)
-        val avfPath = Path().apply { moveTo(avfPt.x, avfPt.y); lineTo(wrist.x, wrist.y) }
-        drawPath(
-            avfPath,
-            color = ArtRed.copy(alpha = 0.90f),
-            style = Stroke(
-                width = 2.2f * minOf(sx, sy) * 5f,
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 3f))
+            val connections = listOf(
+                0 to 1, 1 to 2, 2 to 3, 3 to 4,
+                0 to 5, 5 to 6, 6 to 7, 7 to 8,
+                0 to 9, 9 to 10, 10 to 11, 11 to 12,
+                0 to 13, 13 to 14, 14 to 15, 15 to 16,
+                0 to 17, 17 to 18, 18 to 19, 19 to 20,
+                5 to 9, 9 to 13, 13 to 17
             )
-        )
-        drawCircle(ArtRed,                    radius = 5f  * minOf(sx,sy) * 3f, center = avfPt)
-        drawCircle(ArtRed.copy(alpha = 0.50f), radius = 9f  * minOf(sx,sy) * 3f, center = avfPt,
-            style = Stroke(width = 1.5f * minOf(sx,sy) * 3f))
+
+            for ((a, b) in connections) {
+                drawLine(
+                    MedTeal.copy(alpha = 0.9f), pts[a], pts[b],
+                    strokeWidth = size.width * 0.012f, cap = StrokeCap.Round
+                )
+            }
+
+            for (pt in pts) {
+                drawCircle(MedTeal.copy(alpha = 0.22f), radius = size.width * 0.022f, center = pt)
+                drawCircle(MedTeal, radius = size.width * 0.012f, center = pt)
+            }
+
+            //AVF 마커 (손목 = 랜드마크 0번)
+            val wrist = pts[0]
+            val avfPt = Offset(wrist.x - size.width * 0.08f, wrist.y + size.height * 0.1f)
+            drawLine(
+                ArtRed.copy(alpha = 0.9f), avfPt, wrist, strokeWidth = size.width * 0.008f,
+                cap = StrokeCap.Round, pathEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 3f))
+            )
+            drawCircle(ArtRed, radius = size.width * 0.014f, center = avfPt)
+            drawCircle(
+                ArtRed.copy(alpha = 0.5f), radius = size.width * 0.024f, center = avfPt,
+                style = Stroke(width = size.width * 0.005f)
+            )
+        } else {
+
+            val sw = size.width
+            val sh = size.height
+            val sx = sw / 412f
+            val sy = sh / 828f
+
+            fun p(x: Float, y: Float) = Offset(x * sx, y * sy)
+
+            val wrist = p(206f, 600f)
+            val palm = p(206f, 510f)
+
+            // Finger joints (clenched fist)
+            val fingers = listOf(
+                listOf(p(160f, 525f), p(148f, 480f), p(168f, 448f)),
+                listOf(p(170f, 478f), p(175f, 438f), p(185f, 420f)),
+                listOf(p(206f, 468f), p(212f, 425f), p(218f, 415f)),
+                listOf(p(238f, 478f), p(244f, 438f), p(246f, 425f)),
+                listOf(p(256f, 515f), p(262f, 478f), p(258f, 458f)),
+            )
+
+            val boneColor = MedTeal.copy(alpha = 0.90f)
+            val strokeW = 1.8f * minOf(sx, sy) * 5f
+
+            // Wrist to palm
+            drawLine(boneColor, wrist, palm, strokeWidth = strokeW, cap = StrokeCap.Round)
+
+            // Finger bones
+            for (f in fingers) {
+                drawLine(boneColor, palm, f[0], strokeWidth = strokeW, cap = StrokeCap.Round)
+                drawLine(boneColor, f[0], f[1], strokeWidth = strokeW, cap = StrokeCap.Round)
+                drawLine(boneColor, f[1], f[2], strokeWidth = strokeW, cap = StrokeCap.Round)
+            }
+
+            // Joints
+            val allJoints = fingers.flatten() + listOf(wrist, palm)
+            for (j in allJoints) {
+                drawCircle(
+                    MedTeal.copy(alpha = 0.22f),
+                    radius = 6f * minOf(sx, sy) * 3f,
+                    center = j
+                )
+                drawCircle(MedTeal, radius = 3.5f * minOf(sx, sy) * 3f, center = j)
+            }
+
+            // AVF marker
+            val avfPt = p(155f, 685f)
+            val avfPath = Path().apply { moveTo(avfPt.x, avfPt.y); lineTo(wrist.x, wrist.y) }
+            drawPath(
+                avfPath,
+                color = ArtRed.copy(alpha = 0.90f),
+                style = Stroke(
+                    width = 2.2f * minOf(sx, sy) * 5f,
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 3f))
+                )
+            )
+            drawCircle(ArtRed, radius = 5f * minOf(sx, sy) * 3f, center = avfPt)
+            drawCircle(
+                ArtRed.copy(alpha = 0.50f), radius = 9f * minOf(sx, sy) * 3f, center = avfPt,
+                style = Stroke(width = 1.5f * minOf(sx, sy) * 3f)
+            )
+        }
     }
 }
 
