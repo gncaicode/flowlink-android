@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,16 +21,24 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.CenterFocusWeak
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CenterFocusWeak
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,23 +49,55 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.gncaitech.flowlink.ui.components.FilledButton
 import com.gncaitech.flowlink.ui.components.MetricChip
 import com.gncaitech.flowlink.ui.components.RightActionBtn
 import com.gncaitech.flowlink.ui.theme.ArtRed
 import com.gncaitech.flowlink.ui.theme.MedTeal
 import com.gncaitech.flowlink.ui.theme.MontserratFamily
+import com.gncaitech.flowlink.ui.theme.Navy
+import com.gncaitech.flowlink.ui.theme.NavyFaint
+import kotlinx.coroutines.delay
 
-private val DarkBg = Color(0xFF0A1422)
+// Glass HUD tokens
+private val GlassFill   = Color(0x66000000)  // rgba(0,0,0,0.40)
+private val GlassHair   = Color(0x29FFFFFF)  // rgba(255,255,255,0.16)
+private val DarkBg      = Color(0xFF0A1422)
+private val FgDim       = Color.White.copy(alpha = 0.60f)
+private val FgFaint     = Color.White.copy(alpha = 0.40f)
+private val FgLabel     = Color.White.copy(alpha = 0.55f)
 
 @Composable
-fun MeasureScreen(
-    onClose: () -> Unit = {},
-) {
+fun MeasureScreen(onClose: () -> Unit = {}) {
+
+    val target     = 15
+    val totalSets  = 3
+    val setSeconds = 120
+
+    var reps       by remember { mutableIntStateOf(8) }
+    var currentSet by remember { mutableIntStateOf(2) }
+    var seconds    by remember { mutableIntStateOf(42) }
+    var paused     by remember { mutableStateOf(false) }
+    var hand       by remember { mutableStateOf("right") }
+
+    val repDone  = reps >= target
+    val progress = seconds.toFloat() / setSeconds
+    val mmss     = { s: Int -> "%02d:%02d".format(s / 60, s % 60) }
+
+    // Running timer — cancelled automatically when paused changes to true
+    LaunchedEffect(paused) {
+        if (!paused) {
+            while (seconds < setSeconds) {
+                delay(1000L)
+                seconds = minOf(setSeconds, seconds + 1)
+            }
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -64,330 +105,424 @@ fun MeasureScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        // Background radial gradient
+        // z0 · Camera-style radial backdrop
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.radialGradient(
-                        colors = listOf(
-                            Color(0xFF0D2137),
-                            Color(0xFF070F1A),
+                        colorStops = arrayOf(
+                            0.0f to Color(0xFF14304F),
+                            0.6f to Color(0xFF0A1A2E),
+                            1.0f to Color(0xFF050D17),
                         )
                     )
                 )
         )
 
-        // Hand landmark skeleton on canvas
-        HandLandmarkCanvas(
-            modifier = Modifier.fillMaxSize()
-        )
+        // z1 · Alignment guide + AI hand skeleton
+        AlignmentCirclesOverlay(modifier = Modifier.fillMaxSize())
+        HandLandmarkCanvas(modifier = Modifier.fillMaxSize())
 
-        // Alignment circles overlay
-        AlignmentCirclesOverlay(
-            modifier = Modifier.fillMaxSize()
-        )
-
-        // Top controls row
+        // ── Top bar (top: 12) ──────────────────────────────────────────
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 48.dp, start = 12.dp, end = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(top = 12.dp, start = 12.dp, end = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Close button
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.12f))
-                    .clickable(onClick = onClose),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Close",
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp)
-                )
+            GlassCircle(onClick = onClose) {
+                Icon(Icons.Default.Close, contentDescription = "닫기",
+                    tint = Color.White, modifier = Modifier.size(20.dp))
             }
 
-            Spacer(Modifier.weight(1f))
-
-            // Hand toggle
+            // Hand toggle (flex-1 glass pill)
             Row(
                 modifier = Modifier
+                    .weight(1f)
+                    .height(40.dp)
                     .clip(RoundedCornerShape(20.dp))
-                    .background(Color.White.copy(alpha = 0.12f))
-                    .padding(4.dp)
+                    .background(GlassFill)
+                    .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(20.dp))
             ) {
-                listOf("왼손" to false, "오른손" to true).forEach { (label, selected) ->
+                listOf("left" to "왼손", "right" to "오른손").forEach { (key, label) ->
+                    val active = hand == key
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(if (selected) MedTeal else Color.Transparent)
-                            .clickable { }
-                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                            .weight(1f)
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(if (active) MedTeal else Color.Transparent)
+                            .clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            ) { hand = key },
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            label,
-                            style = TextStyle(
-                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                                fontSize = 13.sp,
-                                color = Color.White
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            if (active) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                            Text(
+                                label,
+                                style = TextStyle(
+                                    fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
+                                    fontSize = 13.sp,
+                                    color = if (active) Color.White else FgDim,
+                                )
                             )
-                        )
+                        }
                     }
                 }
             }
 
-            Spacer(Modifier.weight(1f))
-
-            // Camera flip button
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.12f))
-                    .clickable { },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.CameraAlt,
-                    contentDescription = "Flip camera",
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp)
-                )
+            GlassCircle {
+                Icon(Icons.Default.CameraAlt, contentDescription = "카메라 전환",
+                    tint = Color.White, modifier = Modifier.size(20.dp))
             }
         }
 
-        // Subject chip + REC badge
+        // ── Subject chip + REC badge (top: 64) ────────────────────────
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 102.dp, start = 12.dp, end = 12.dp),
+                .padding(top = 64.dp, start = 12.dp, end = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Subject chip
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Color.White.copy(alpha = 0.10f))
-                    .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(20.dp))
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
-            ) {
-                Text(
-                    "김선영  ·  P-2026-04812",
-                    style = TextStyle(
-                        fontSize = 12.sp,
-                        color = Color.White.copy(alpha = 0.85f)
-                    )
-                )
-            }
-
-            // REC badge
+            // Subject chip with avatar
             Row(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(ArtRed.copy(alpha = 0.85f))
-                    .padding(horizontal = 10.dp, vertical = 5.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(GlassFill)
+                    .border(1.dp, GlassHair, RoundedCornerShape(12.dp))
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Box(
                     modifier = Modifier
-                        .size(7.dp)
+                        .size(24.dp)
                         .clip(CircleShape)
-                        .background(Color.White)
+                        .background(NavyFaint),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "김",
+                        style = TextStyle(
+                            fontFamily = MontserratFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp,
+                            color = Navy
+                        )
+                    )
+                }
+                Column {
+                    Text(
+                        "김선영",
+                        style = TextStyle(
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 12.sp,
+                            color = Color.White
+                        )
+                    )
+                    Text(
+                        "P-2026-04812",
+                        style = TextStyle(
+                            fontFamily = MontserratFamily,
+                            fontSize = 9.sp,
+                            letterSpacing = (0.06f * 9f).sp,
+                            color = FgLabel
+                        )
+                    )
+                }
+            }
+
+            // REC badge — translucent red
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(ArtRed.copy(alpha = 0.18f))
+                    .border(1.dp, ArtRed.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(ArtRed)
                 )
-                Spacer(Modifier.width(6.dp))
                 Text(
                     "REC",
                     style = TextStyle(
                         fontFamily = MontserratFamily,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp,
-                        color = Color.White,
-                        letterSpacing = 0.12.sp,
+                        fontSize = 10.sp,
+                        letterSpacing = (0.14f * 10f).sp,
+                        color = Color.White
                     )
                 )
             }
         }
 
-        // Timer + Set panel
-        Box(
+        // ── Timer + Set indicator card (top: 116, full-width) ─────────
+        Column(
             modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(top = 152.dp, start = 12.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(Color.White.copy(alpha = 0.08f))
-                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(14.dp))
+                .fillMaxWidth()
+                .padding(top = 116.dp, start = 12.dp, end = 12.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(GlassFill)
+                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(12.dp))
                 .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
-            Column {
-                // Clock row
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Clock + time
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text("⏱", style = TextStyle(fontSize = 14.sp))
                     Text(
-                        "⏱",
-                        style = TextStyle(fontSize = 12.sp)
-                    )
-                    Spacer(Modifier.width(5.dp))
-                    Text(
-                        "00:42 / 02:00",
+                        mmss(seconds),
                         style = TextStyle(
                             fontFamily = MontserratFamily,
-                            fontWeight = FontWeight.SemiBold,
+                            fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
                             color = Color.White
                         )
                     )
+                    Text("/", style = TextStyle(fontSize = 12.sp, color = FgFaint))
+                    Text(
+                        mmss(setSeconds),
+                        style = TextStyle(
+                            fontFamily = MontserratFamily,
+                            fontSize = 12.sp,
+                            color = FgDim
+                        )
+                    )
                 }
-                Spacer(Modifier.height(8.dp))
-                // Set boxes
-                Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                    SetBox(number = 1, done = true)
-                    SetBox(number = 2, current = true)
-                    SetBox(number = 3)
-                }
-                Spacer(Modifier.height(8.dp))
-                // Progress bar
-                Box(
-                    modifier = Modifier
-                        .width(120.dp)
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(Color.White.copy(alpha = 0.2f))
+                // Set indicator chips
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(0.35f)
-                            .height(4.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(ArtRed)
+                    Text(
+                        "SET",
+                        style = TextStyle(
+                            fontFamily = MontserratFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 9.sp,
+                            letterSpacing = (0.14f * 9f).sp,
+                            color = Color.White.copy(alpha = 0.50f)
+                        )
+                    )
+                    Spacer(Modifier.width(2.dp))
+                    for (n in 1..totalSets) {
+                        Box(
+                            modifier = Modifier
+                                .size(18.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(
+                                    when {
+                                        n < currentSet  -> MedTeal
+                                        n == currentSet -> ArtRed
+                                        else            -> Color.White.copy(alpha = 0.15f)
+                                    }
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                if (n < currentSet) "✓" else n.toString(),
+                                style = TextStyle(
+                                    fontFamily = MontserratFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 10.sp,
+                                    color = if (n <= currentSet) Color.White
+                                            else Color.White.copy(alpha = 0.50f)
+                                )
+                            )
+                        }
+                    }
+                    Text(
+                        "/ $totalSets",
+                        style = TextStyle(
+                            fontFamily = MontserratFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 11.sp,
+                            color = Color.White.copy(alpha = 0.55f)
+                        )
                     )
                 }
             }
-        }
 
-        // AI Tracking label
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 152.dp, end = 12.dp)
-                .clip(RoundedCornerShape(20.dp))
-                .background(MedTeal.copy(alpha = 0.18f))
-                .border(1.dp, MedTeal.copy(alpha = 0.45f), RoundedCornerShape(20.dp))
-                .padding(horizontal = 12.dp, vertical = 7.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Spacer(Modifier.height(8.dp))
+
+            // Progress bar — Teal fill
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(Color.White.copy(alpha = 0.12f))
+            ) {
                 Box(
                     modifier = Modifier
-                        .size(7.dp)
+                        .fillMaxWidth(progress)
+                        .height(4.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(MedTeal)
+                )
+            }
+        }
+
+        // ── AI tracking caption (top: 184, centered) ──────────────────
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 184.dp),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(MedTeal.copy(alpha = 0.18f))
+                    .border(1.dp, MedTeal.copy(alpha = 0.40f), RoundedCornerShape(999.dp))
+                    .padding(horizontal = 12.dp, vertical = 5.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
                         .clip(CircleShape)
                         .background(MedTeal)
                 )
-                Spacer(Modifier.width(6.dp))
                 Text(
                     "AI POSE TRACKING · 공쥐기",
                     style = TextStyle(
                         fontFamily = MontserratFamily,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Bold,
                         fontSize = 10.sp,
-                        letterSpacing = (0.10f * 10f).sp,
-                        color = MedTeal,
+                        letterSpacing = (0.18f * 10f).sp,
+                        color = MedTeal
                     )
                 )
             }
         }
 
-        // Big counter (center)
+        // ── Rep counter (top: 222, centered, tap to increment) ────────
         Column(
-            modifier = Modifier.align(Alignment.Center),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 222.dp)
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) { if (reps < target) reps++ },
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 "탭 수",
                 style = TextStyle(
                     fontFamily = MontserratFamily,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Bold,
                     fontSize = 10.sp,
-                    letterSpacing = (0.14f * 10f).sp,
-                    color = Color.White.copy(alpha = 0.55f),
+                    letterSpacing = (0.22f * 10f).sp,
+                    color = FgLabel
                 )
             )
+            Spacer(Modifier.height(2.dp))
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
-                    "08",
+                    reps.toString().padStart(2, '0'),
                     style = TextStyle(
                         fontFamily = MontserratFamily,
                         fontWeight = FontWeight.Black,
                         fontSize = 108.sp,
                         color = Color.White,
                         lineHeight = 108.sp,
+                        letterSpacing = (-0.05f * 108f).sp,
                     )
                 )
-                Spacer(Modifier.width(6.dp))
+                Spacer(Modifier.width(10.dp))
                 Text(
-                    "/ 15",
+                    "/ $target",
                     style = TextStyle(
                         fontFamily = MontserratFamily,
-                        fontWeight = FontWeight.Normal,
+                        fontWeight = FontWeight.Medium,
                         fontSize = 28.sp,
-                        color = Color.White.copy(alpha = 0.40f),
+                        color = FgFaint,
                     ),
                     modifier = Modifier.padding(bottom = 18.dp)
                 )
             }
         }
 
-        // Right-stacked action buttons
+        // ── Right action stack (bottom: 200, right: 12) ───────────────
         Column(
             modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .padding(end = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .align(Alignment.BottomEnd)
+                .padding(end = 12.dp, bottom = 200.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            RightActionBtn(
-                icon = Icons.Default.CenterFocusWeak,
-                label = "기준 설정"
-            )
-            RightActionBtn(
-                icon = Icons.Default.FitnessCenter,
-                label = "미션 선택"
-            )
+            RightActionBtn(icon = Icons.Default.CenterFocusWeak, label = "기준 설정")
+            RightActionBtn(icon = Icons.Default.FitnessCenter,   label = "미션 선택")
         }
 
-        // Bottom controls
+        // ── Bottom HUD (bottom: 16) ────────────────────────────────────
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(horizontal = 12.dp)
+                .padding(bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // AI feedback bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MedTeal.copy(alpha = 0.12f))
-                    .border(1.dp, MedTeal.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(MedTeal.copy(alpha = 0.18f))
+                    .border(1.dp, MedTeal.copy(alpha = 0.40f), RoundedCornerShape(14.dp))
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = null,
-                    tint = MedTeal,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(Modifier.width(10.dp))
-                Column {
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(MedTeal),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         "좋아요! 자세가 정확합니다",
                         style = TextStyle(
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.SemiBold,
                             fontSize = 13.sp,
                             color = Color.White
                         )
@@ -395,77 +530,131 @@ fun MeasureScreen(
                     Text(
                         "손목 162° · 그립 78% · 안정 ↑",
                         style = TextStyle(
+                            fontFamily = MontserratFamily,
                             fontSize = 11.sp,
-                            color = MedTeal.copy(alpha = 0.85f)
+                            letterSpacing = (0.04f * 11f).sp,
+                            color = Color.White.copy(alpha = 0.65f)
                         )
                     )
                 }
             }
 
-            // Metrics row
+            // Metric chips
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                MetricChip(label = "그립", value = "78", unit = "%", modifier = Modifier.weight(1f))
+                MetricChip(label = "그립", value = "78",  unit = "%", modifier = Modifier.weight(1f))
                 MetricChip(label = "속도", value = "2.1", unit = "s", modifier = Modifier.weight(1f))
-                MetricChip(label = "범위", value = "92", unit = "°", modifier = Modifier.weight(1f))
+                MetricChip(label = "범위", value = "92",  unit = "°", modifier = Modifier.weight(1f))
             }
 
-            // Control row
+            // Controls
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Pause button
+                // Pause / Play
                 Box(
                     modifier = Modifier
                         .size(56.dp)
                         .clip(CircleShape)
                         .background(Color.White.copy(alpha = 0.12f))
-                        .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape)
-                        .clickable { },
+                        .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape)
+                        .clickable { paused = !paused },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Pause,
-                        contentDescription = "Pause",
+                        imageVector = if (paused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                        contentDescription = if (paused) "재생" else "일시정지",
                         tint = Color.White,
                         modifier = Modifier.size(24.dp)
                     )
                 }
 
-                FilledButton(
-                    text = "세트 완료하기",
-                    leadingIcon = Icons.AutoMirrored.Filled.ArrowForward,
-                    modifier = Modifier.weight(1f),
-                    height = 56.dp,
-                )
+                // 세트 완료하기 (Red → Teal when target hit)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(56.dp)
+                        .clip(RoundedCornerShape(28.dp))
+                        .background(if (repDone) MedTeal else ArtRed)
+                        .clickable {
+                            if (currentSet < totalSets) {
+                                currentSet++
+                                reps = 0
+                                seconds = 0
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            "세트 완료하기",
+                            style = TextStyle(
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 16.sp,
+                                letterSpacing = (0.1f).sp,
+                                color = Color.White
+                            )
+                        )
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
             }
         }
     }
 }
 
 // ---------------------------------------------------------------------------
-// SetBox — small set indicator
+// GlassCircle — 40dp glass icon button
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun SetBox(
-    number: Int,
-    done: Boolean = false,
-    current: Boolean = false,
+private fun GlassCircle(
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    content: @Composable () -> Unit,
 ) {
+    Box(
+        modifier = modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(GlassFill)
+            .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape)
+            .then(
+                if (onClick != null)
+                    Modifier.clickable(onClick = onClick)
+                else Modifier
+            ),
+        contentAlignment = Alignment.Center
+    ) { content() }
+}
+
+// ---------------------------------------------------------------------------
+// SetBox — kept for backward compat (unused — chips inline above)
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun SetBox(number: Int, done: Boolean = false, current: Boolean = false) {
     val bg = when {
-        done -> MedTeal.copy(alpha = 0.85f)
-        current -> ArtRed.copy(alpha = 0.85f)
-        else -> Color.White.copy(alpha = 0.10f)
+        done    -> MedTeal
+        current -> ArtRed
+        else    -> Color.White.copy(alpha = 0.15f)
     }
     Box(
         modifier = Modifier
-            .size(28.dp)
-            .clip(RoundedCornerShape(6.dp))
+            .size(18.dp)
+            .clip(RoundedCornerShape(4.dp))
             .background(bg),
         contentAlignment = Alignment.Center
     ) {
@@ -474,15 +663,15 @@ private fun SetBox(
             style = TextStyle(
                 fontFamily = MontserratFamily,
                 fontWeight = FontWeight.Bold,
-                fontSize = 11.sp,
-                color = if (done || current) Color.White else Color.White.copy(alpha = 0.45f),
+                fontSize = 10.sp,
+                color = if (done || current) Color.White else Color.White.copy(alpha = 0.50f)
             )
         )
     }
 }
 
 // ---------------------------------------------------------------------------
-// HandLandmarkCanvas
+// HandLandmarkCanvas — clenched fist skeleton + AVF marker
 // ---------------------------------------------------------------------------
 
 @Composable
@@ -495,147 +684,99 @@ private fun HandLandmarkCanvas(modifier: Modifier = Modifier) {
 
         fun p(x: Float, y: Float) = Offset(x * sx, y * sy)
 
-        // Clenched fist hand landmark positions (viewBox 412x828)
         val wrist = p(206f, 600f)
-        val palmBase = p(206f, 510f)
+        val palm  = p(206f, 510f)
 
-        // Thumb
-        val thumb = listOf(wrist, p(170f, 540f), p(148f, 510f), p(138f, 486f))
-        // Index
-        val index = listOf(palmBase, p(178f, 480f), p(172f, 455f), p(169f, 435f))
-        // Middle
-        val middle = listOf(palmBase, p(200f, 475f), p(196f, 450f), p(193f, 428f))
-        // Ring
-        val ring = listOf(palmBase, p(222f, 478f), p(220f, 454f), p(218f, 433f))
-        // Pinky
-        val pinky = listOf(palmBase, p(244f, 485f), p(248f, 463f), p(250f, 445f))
+        // Finger joints (clenched fist)
+        val fingers = listOf(
+            listOf(p(160f,525f), p(148f,480f), p(168f,448f)),
+            listOf(p(170f,478f), p(175f,438f), p(185f,420f)),
+            listOf(p(206f,468f), p(212f,425f), p(218f,415f)),
+            listOf(p(238f,478f), p(244f,438f), p(246f,425f)),
+            listOf(p(256f,515f), p(262f,478f), p(258f,458f)),
+        )
 
-        val allFingers = listOf(thumb, index, middle, ring, pinky)
-        val dotColor = MedTeal
-        val lineColor = MedTeal.copy(alpha = 0.75f)
+        val boneColor  = MedTeal.copy(alpha = 0.90f)
+        val strokeW    = 1.8f * minOf(sx, sy) * 5f
 
-        // Draw wrist to palm line
-        drawLine(lineColor, wrist, palmBase, strokeWidth = 1.8f * minOf(sx, sy) * 5f, cap = StrokeCap.Round)
+        // Wrist to palm
+        drawLine(boneColor, wrist, palm, strokeWidth = strokeW, cap = StrokeCap.Round)
 
-        // Draw finger bones
-        for (finger in allFingers) {
-            for (i in 0 until finger.size - 1) {
-                drawLine(
-                    color = lineColor,
-                    start = finger[i],
-                    end = finger[i + 1],
-                    strokeWidth = 1.8f * minOf(sx, sy) * 5f,
-                    cap = StrokeCap.Round
-                )
-            }
+        // Finger bones
+        for (f in fingers) {
+            drawLine(boneColor, palm,  f[0], strokeWidth = strokeW, cap = StrokeCap.Round)
+            drawLine(boneColor, f[0],  f[1], strokeWidth = strokeW, cap = StrokeCap.Round)
+            drawLine(boneColor, f[1],  f[2], strokeWidth = strokeW, cap = StrokeCap.Round)
         }
 
-        // Draw joint dots
-        val allJoints = allFingers.flatten() + wrist
-        for (joint in allJoints) {
-            // Outer ring
-            drawCircle(
-                color = dotColor.copy(alpha = 0.22f),
-                radius = 6f * minOf(sx, sy) * 3f,
-                center = joint
-            )
-            // Filled dot
-            drawCircle(
-                color = dotColor,
-                radius = 3.5f * minOf(sx, sy) * 3f,
-                center = joint
-            )
+        // Joints
+        val allJoints = fingers.flatten() + listOf(wrist, palm)
+        for (j in allJoints) {
+            drawCircle(MedTeal.copy(alpha = 0.22f), radius = 6f * minOf(sx,sy) * 3f, center = j)
+            drawCircle(MedTeal,                     radius = 3.5f * minOf(sx,sy) * 3f, center = j)
         }
 
         // AVF marker
-        val avfStart = p(155f, 685f)
-        val avfEnd = wrist
-        val dashPath = Path().apply {
-            moveTo(avfStart.x, avfStart.y)
-            lineTo(avfEnd.x, avfEnd.y)
-        }
+        val avfPt = p(155f, 685f)
+        val avfPath = Path().apply { moveTo(avfPt.x, avfPt.y); lineTo(wrist.x, wrist.y) }
         drawPath(
-            path = dashPath,
-            color = ArtRed.copy(alpha = 0.75f),
+            avfPath,
+            color = ArtRed.copy(alpha = 0.90f),
             style = Stroke(
-                width = 1.5f * minOf(sx, sy) * 5f,
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 5f))
+                width = 2.2f * minOf(sx, sy) * 5f,
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 3f))
             )
         )
-        // Red circle at marker
-        drawCircle(
-            color = ArtRed.copy(alpha = 0.55f),
-            radius = 10f * minOf(sx, sy) * 3f,
-            center = avfStart,
-            style = Stroke(width = 1.5f * minOf(sx, sy) * 3f)
-        )
-        drawCircle(
-            color = ArtRed,
-            radius = 4f * minOf(sx, sy) * 3f,
-            center = avfStart
-        )
+        drawCircle(ArtRed,                    radius = 5f  * minOf(sx,sy) * 3f, center = avfPt)
+        drawCircle(ArtRed.copy(alpha = 0.50f), radius = 9f  * minOf(sx,sy) * 3f, center = avfPt,
+            style = Stroke(width = 1.5f * minOf(sx,sy) * 3f))
     }
 }
 
 // ---------------------------------------------------------------------------
-// AlignmentCirclesOverlay
+// AlignmentCirclesOverlay — dashed outer ring, teal inner ring, 4 brackets
 // ---------------------------------------------------------------------------
 
 @Composable
 private fun AlignmentCirclesOverlay(modifier: Modifier = Modifier) {
     Canvas(modifier = modifier) {
         val cx = size.width / 2f
-        val cy = size.height * 0.48f
-        val outerR = size.width * 0.38f
-        val innerR = size.width * 0.24f
+        val cy = size.height * (450f / 828f)
 
-        // Dashed outer circle
+        val outerR = size.width * (180f / 412f)
+        val innerR = size.width * (130f / 412f)
+
+        // Dashed outer ring
         drawCircle(
-            color = MedTeal.copy(alpha = 0.22f),
+            color = Color.White.copy(alpha = 0.12f),
             radius = outerR,
             center = Offset(cx, cy),
-            style = Stroke(
-                width = 1.5f,
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f))
-            )
+            style = Stroke(width = 1f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f)))
         )
 
-        // Solid inner teal circle
+        // Solid inner teal ring
         drawCircle(
-            color = MedTeal.copy(alpha = 0.12f),
+            color = MedTeal.copy(alpha = 0.35f),
             radius = innerR,
             center = Offset(cx, cy),
-            style = Stroke(width = 2f)
+            style = Stroke(width = 1.5f)
         )
 
-        // 4 corner brackets in teal
-        val bracketLen = 28f
-        val bracketThick = 3f
-        val corners = listOf(
-            Offset(cx - outerR * 0.72f, cy - outerR * 0.72f),
-            Offset(cx + outerR * 0.72f, cy - outerR * 0.72f),
-            Offset(cx - outerR * 0.72f, cy + outerR * 0.72f),
-            Offset(cx + outerR * 0.72f, cy + outerR * 0.72f),
+        // 4 corner brackets
+        val sx = size.width  / 412f
+        val sy = size.height / 828f
+        val legLen = 24f * minOf(sx, sy) * 10f
+        val brackets = listOf(
+            Triple(20f * sx, 260f * sy,  Pair( 1f,  1f)),
+            Triple(392f * sx, 260f * sy, Pair(-1f,  1f)),
+            Triple(20f * sx, 640f * sy,  Pair( 1f, -1f)),
+            Triple(392f * sx, 640f * sy, Pair(-1f, -1f)),
         )
-        val cornerDirs = listOf(
-            Pair(1f, 1f), Pair(-1f, 1f), Pair(1f, -1f), Pair(-1f, -1f)
-        )
-        for ((corner, dir) in corners.zip(cornerDirs)) {
-            val (dx, dy) = dir
-            drawLine(
-                MedTeal.copy(alpha = 0.6f),
-                corner,
-                Offset(corner.x + bracketLen * dx, corner.y),
-                strokeWidth = bracketThick,
-                cap = StrokeCap.Round
-            )
-            drawLine(
-                MedTeal.copy(alpha = 0.6f),
-                corner,
-                Offset(corner.x, corner.y + bracketLen * dy),
-                strokeWidth = bracketThick,
-                cap = StrokeCap.Round
-            )
+        val bracketColor = MedTeal.copy(alpha = 0.70f)
+        for ((bx, by, dir) in brackets) {
+            val pt = Offset(bx, by)
+            drawLine(bracketColor, pt, Offset(bx + legLen * dir.first,  by), strokeWidth = 2f, cap = StrokeCap.Round)
+            drawLine(bracketColor, pt, Offset(bx, by + legLen * dir.second), strokeWidth = 2f, cap = StrokeCap.Round)
         }
     }
 }

@@ -471,27 +471,29 @@ fun RightActionBtn(
 ) {
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color.White.copy(alpha = 0.12f))
+            .width(56.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color.Black.copy(alpha = 0.45f))
+            .border(1.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(14.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 10.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(horizontal = 4.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Icon(
             imageVector = icon,
             contentDescription = label,
             tint = Color.White,
-            modifier = Modifier.size(22.dp)
+            modifier = Modifier.size(20.dp)
         )
-        Spacer(Modifier.height(4.dp))
         Text(
             label,
             style = TextStyle(
                 fontFamily = MontserratFamily,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 9.sp,
-                letterSpacing = 0.02.sp,
-                color = Color.White.copy(alpha = 0.8f)
+                letterSpacing = (0.06f * 9f).sp,
+                color = Color.White
             )
         )
     }
@@ -510,53 +512,52 @@ fun MetricChip(
 ) {
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(10.dp))
             .background(Color.White.copy(alpha = 0.08f))
-            .border(1.dp, MedTeal.copy(alpha = 0.25f), RoundedCornerShape(14.dp))
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(10.dp))
+            .padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            // Teal glow dot
-            Box(
-                modifier = Modifier
-                    .size(6.dp)
-                    .clip(CircleShape)
-                    .background(MedTeal)
+        // Label (uppercase)
+        Text(
+            label.uppercase(),
+            style = TextStyle(
+                fontFamily = MontserratFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 9.sp,
+                letterSpacing = (0.16f * 9f).sp,
+                color = Color.White.copy(alpha = 0.55f)
             )
-            Spacer(Modifier.width(4.dp))
-            Text(
-                label,
-                style = TextStyle(
-                    fontFamily = MontserratFamily,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 9.sp,
-                    letterSpacing = 0.14.sp,
-                    color = MedTeal
-                )
-            )
-        }
+        )
         Spacer(Modifier.height(4.dp))
+        // Value + unit + teal dot (right-aligned)
         Row(verticalAlignment = Alignment.Bottom) {
             Text(
                 value,
                 style = TextStyle(
                     fontFamily = MontserratFamily,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    letterSpacing = (-0.02f * 18f).sp,
                     color = Color.White
                 )
             )
-            Spacer(Modifier.width(2.dp))
+            Spacer(Modifier.width(4.dp))
             Text(
                 unit,
                 style = TextStyle(
                     fontFamily = MontserratFamily,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 12.sp,
-                    color = Color.White.copy(alpha = 0.6f)
+                    fontSize = 11.sp,
+                    color = Color.White.copy(alpha = 0.55f)
                 ),
-                modifier = Modifier.padding(bottom = 3.dp)
+                modifier = Modifier.padding(bottom = 2.dp)
+            )
+            Spacer(Modifier.weight(1f))
+            Box(
+                modifier = Modifier
+                    .size(5.dp)
+                    .clip(CircleShape)
+                    .background(MedTeal)
+                    .align(Alignment.CenterVertically)
             )
         }
     }
