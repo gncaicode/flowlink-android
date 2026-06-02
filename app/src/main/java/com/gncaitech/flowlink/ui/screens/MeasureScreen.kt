@@ -1,5 +1,9 @@
 package com.gncaitech.flowlink.ui.screens
 
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -52,8 +56,12 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
 import com.gncaitech.flowlink.network.PatientDto
 import com.gncaitech.flowlink.ui.components.MetricChip
 import com.gncaitech.flowlink.ui.components.RightActionBtn
@@ -87,6 +95,7 @@ fun MeasureScreen(
     var seconds    by remember { mutableIntStateOf(42) }
     var paused     by remember { mutableStateOf(false) }
     var hand       by remember { mutableStateOf("right") }
+    var lensFacing by remember { mutableIntStateOf(CameraSelector.LENS_FACING_FRONT) }
 
     val repDone  = reps >= target
     val progress = seconds.toFloat() / setSeconds
@@ -114,18 +123,30 @@ fun MeasureScreen(
             .navigationBarsPadding()
     ) {
         // z0 · Camera-style radial backdrop
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.radialGradient(
-                        colorStops = arrayOf(
-                            0.0f to Color(0xFF14304F),
-                            0.6f to Color(0xFF0A1A2E),
-                            1.0f to Color(0xFF050D17),
-                        )
-                    )
-                )
+
+        // z0 · 카메라 프리뷰
+        val context = LocalContext.current
+        val lifecycleOwner = LocalLifecycleOwner.current
+        val previewView = remember { PreviewView(context) }
+
+        LaunchedEffect(lensFacing) {
+            val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+            cameraProviderFuture.addListener({
+                val cameraProvider = cameraProviderFuture.get()
+                val preview = Preview.Builder().build().also {
+                    it.setSurfaceProvider(previewView.surfaceProvider)
+                }
+                val cameraSelector = CameraSelector.Builder()
+                    .requireLensFacing(lensFacing)
+                    .build()
+                cameraProvider.unbindAll()
+                cameraProvider.bindToLifecycle(lifecycleOwner, cameraSelector, preview)
+            }, ContextCompat.getMainExecutor(context))
+        }
+
+        AndroidView(
+            factory = { previewView },
+            modifier = Modifier.fillMaxSize()
         )
 
         // z1 · Alignment guide + AI hand skeleton
@@ -193,7 +214,12 @@ fun MeasureScreen(
                 }
             }
 
-            GlassCircle {
+            GlassCircle(onClick = {
+                lensFacing = if (lensFacing == CameraSelector.LENS_FACING_FRONT)
+                    CameraSelector.LENS_FACING_BACK
+                else
+                    CameraSelector.LENS_FACING_FRONT
+            }) {
                 Icon(Icons.Default.CameraAlt, contentDescription = "카메라 전환",
                     tint = Color.White, modifier = Modifier.size(20.dp))
             }

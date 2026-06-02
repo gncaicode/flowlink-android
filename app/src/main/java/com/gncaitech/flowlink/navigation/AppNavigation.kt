@@ -19,6 +19,7 @@ import com.gncaitech.flowlink.ui.screens.SubjectSelectScreen
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import com.gncaitech.flowlink.ui.screens.WithCameraPermission
 
 
 @Composable
@@ -119,11 +120,14 @@ fun AppNavigation() {
             )
         }
 
+
         composable("measure") {
-            MeasureScreen(
-                patient = selectedPatient,
-                onClose = { navController.popBackStack() }
-            )
+            WithCameraPermission {
+                MeasureScreen(
+                    patient = selectedPatient,
+                    onClose = { navController.popBackStack() }
+                )
+            }
         }
     }
 }
