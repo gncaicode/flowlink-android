@@ -100,15 +100,33 @@ fun MeasureScreen(
     var seconds    by remember { mutableIntStateOf(42) }
     var paused     by remember { mutableStateOf(false) }
     var hand       by remember { mutableStateOf("right") }
-    var lensFacing by remember { mutableIntStateOf(CameraSelector.LENS_FACING_FRONT) }
-    var landmarks  by remember { mutableStateOf<List<Pair<Float, Float>>>(emptyList()) }
+    var lensFacing by remember { mutableIntStateOf(CameraSelector.LENS_FACING_BACK) }
+    val landmarksState = remember { mutableStateOf<List<Pair<Float, Float>>>(emptyList()) }
+    var landmarks by landmarksState
+    val wasOpenState = remember { mutableStateOf(true) }
+    var wasOpen by wasOpenState
 
     val executor = remember { Executors.newSingleThreadExecutor() }
+
     val detector = remember(context) {
-        HandLandmarkDetector(context) { hands ->
-            landmarks = hands.firstOrNull() ?: emptyList()
-        }
+        HandLandmarkDetector(
+            context = context,
+            onResult = { handList ->
+                landmarksState.value = handList.firstOrNull() ?: emptyList()
+            },
+            onGrip = { isClosed ->
+                if (isClosed) {
+                    wasOpenState.value = false
+                } else {
+                    if (!wasOpenState.value) {
+                        reps++
+                    }
+                    wasOpenState.value = true
+                }
+            }
+        )
     }
+
     DisposableEffect(Unit) {
         onDispose {
             detector.close()
