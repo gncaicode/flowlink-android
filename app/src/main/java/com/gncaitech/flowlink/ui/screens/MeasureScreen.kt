@@ -75,6 +75,8 @@ import androidx.camera.core.ImageAnalysis
 import androidx.compose.runtime.DisposableEffect
 import com.gncaitech.flowlink.ml.HandLandmarkDetector
 import java.util.concurrent.Executors
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 
 // Glass HUD tokens
 private val GlassFill   = Color(0x66000000)  // rgba(0,0,0,0.40)
@@ -88,6 +90,7 @@ private val FgLabel     = Color.White.copy(alpha = 0.55f)
 fun MeasureScreen(
     patient: PatientDto? = null,
     onClose: () -> Unit = {},
+    onFinish: () -> Unit = {},
 ) {
     val context = LocalContext.current
 
@@ -95,9 +98,9 @@ fun MeasureScreen(
     val totalSets  = 3
     val setSeconds = 120
 
-    var reps       by remember { mutableIntStateOf(8) }
-    var currentSet by remember { mutableIntStateOf(2) }
-    var seconds    by remember { mutableIntStateOf(42) }
+    var reps       by remember { mutableIntStateOf(0) }
+    var currentSet by remember { mutableIntStateOf(1) }
+    var seconds    by remember { mutableIntStateOf(0) }
     var paused     by remember { mutableStateOf(false) }
     var hand       by remember { mutableStateOf("right") }
     var lensFacing by remember { mutableIntStateOf(CameraSelector.LENS_FACING_BACK) }
@@ -105,6 +108,7 @@ fun MeasureScreen(
     var landmarks by landmarksState
     val wasOpenState = remember { mutableStateOf(true) }
     var wasOpen by wasOpenState
+    var showExitDialog by remember { mutableStateOf(false) }
 
     val executor = remember { Executors.newSingleThreadExecutor() }
 
@@ -159,6 +163,25 @@ fun MeasureScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
+
+        if (showExitDialog) {
+            AlertDialog(
+                onDismissRequest = { showExitDialog = false },
+                title = { Text("측정 종료") },
+                text = { Text("측정을 종료하시겠습니까?\n현재 세션 데이터는 저장되지 않습니다.") },
+                confirmButton = {
+                    TextButton(onClick = { showExitDialog = false; onClose() }) {
+                        Text("종료", color = ArtRed)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showExitDialog = false }) {
+                        Text("계속")
+                    }
+                }
+            )
+        }
+
         // z0 · Camera-style radial backdrop
 
         // z0 · 카메라 프리뷰
@@ -207,7 +230,7 @@ fun MeasureScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            GlassCircle(onClick = onClose) {
+            GlassCircle(onClick = { showExitDialog = true }) {
                 Icon(Icons.Default.Close, contentDescription = "닫기",
                     tint = Color.White, modifier = Modifier.size(20.dp))
             }
@@ -665,6 +688,9 @@ fun MeasureScreen(
                                 currentSet++
                                 reps = 0
                                 seconds = 0
+                            } else {
+                                // 마지막 세트 완료 -> 세션 종료
+                                onFinish()
                             }
                         },
                     contentAlignment = Alignment.Center

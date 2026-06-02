@@ -125,7 +125,8 @@ fun AppNavigation() {
             WithCameraPermission {
                 MeasureScreen(
                     patient = selectedPatient,
-                    onClose = { navController.popBackStack() }
+                    onClose = { navController.popBackStack() },
+                    onFinish = { navController.popBackStack() }
                 )
             }
         }
