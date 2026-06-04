@@ -172,9 +172,9 @@ fun AppNavigation() {
             ResultScreen(
                 patient         = selectedPatient,
                 totalReps       = resultTotalReps,
-                repsTarget      = 15,
-                setsCompleted   = 3,
-                totalSets       = 3,
+                repsTarget      = exerciseConfig.targetReps,
+                setsCompleted   = exerciseConfig.totalSets,
+                totalSets       = exerciseConfig.totalSets,
                 totalSeconds    = resultTotalSeconds,
                 onBack = {
                     navController.navigate("subject_select") {
