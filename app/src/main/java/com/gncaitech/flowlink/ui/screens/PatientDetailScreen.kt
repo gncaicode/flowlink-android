@@ -41,6 +41,10 @@ fun PatientDetailScreen(
 ) {
     var sessions by remember { mutableStateOf<List<SessionDto>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    val totalSessions = sessions.size
+    val avgReps = if (sessions.isEmpty()) 0 else sessions.map { it.repsCompleted }.average().toInt()
+    val achieveRate = if (sessions.isEmpty()) 0 else (sessions.map { it.repsCompleted.toFloat() / it.repsTarget }.average() * 100).toInt()
+    val lastDate = sessions.maxByOrNull { it.date }?.date?.take(10) ?: "-"
 
     LaunchedEffect(patient.id) {
         try {
@@ -179,6 +183,25 @@ fun PatientDetailScreen(
         ) {
             Spacer(Modifier.height(16.dp))
 
+            //통계 카드
+            if (!isLoading && sessions.isNotEmpty()) {
+                Row (
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Navy.copy(alpha = 0.06f))
+                        .border(1.dp, Navy.copy(alpha = 0.12f), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ){
+                    StatItem("총 세션", "${totalSessions}회")
+                    StatItem("평균 횟수", "${avgReps}회")
+                    StatItem("달성률", "${achieveRate}%")
+                    StatItem("최근 활동", lastDate)
+                }
+                Spacer(Modifier.height(12.dp))
+            }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -209,7 +232,10 @@ fun PatientDetailScreen(
             Spacer(Modifier.height(10.dp))
 
             if (isLoading) {
-                Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = MedTeal)
                 }
             } else if (sessions.isEmpty()) {
@@ -329,5 +355,25 @@ private fun InfoItem(label: String, value: String) {
             fontFamily = MontserratFamily, fontWeight = FontWeight.SemiBold,
             fontSize = 12.sp, color = Color.White
         ))
+    }
+}
+
+@Composable
+private fun StatItem(label: String, value: String) {
+    Column (horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            value,
+            style = TextStyle(
+                fontFamily = MontserratFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                color = Navy
+            )
+        )
+        Text(
+            label,
+            style = TextStyle(fontSize = 10.sp,color = G500)
+        )
+
     }
 }
