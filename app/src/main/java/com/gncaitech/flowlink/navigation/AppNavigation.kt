@@ -113,6 +113,10 @@ fun AppNavigation() {
                     selectedPatient = patient
                     navController.navigate("detail")
                 },
+                onNavigateToMeasure = { patient ->
+                    selectedPatient = patient
+                    navController.navigate("setup")
+                },
                 onLogout = {
                     navController.navigate("login") {
                         popUpTo("subject_select") { inclusive = true }
@@ -125,8 +129,7 @@ fun AppNavigation() {
             selectedPatient?.let { patient ->
                 PatientDetailScreen(
                     patient = patient,
-                    onBack = { navController.popBackStack() },
-                    onStartMeasure = { navController.navigate("setup") }
+                    onBack = { navController.popBackStack() }
                 )
             }
         }
@@ -164,7 +167,6 @@ fun AppNavigation() {
                 )
             }
         }
-
 
         composable("result") {
             ResultScreen(

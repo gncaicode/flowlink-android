@@ -27,6 +27,7 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -68,6 +69,7 @@ import com.gncaitech.flowlink.network.patientApi
 fun SubjectSelectScreen(
     onNavigateToRegister: () -> Unit = {},
     onNavigateToDetail: (PatientDto) -> Unit = {},
+    onNavigateToMeasure: (PatientDto) -> Unit = {},
     onLogout: () -> Unit = {},
 ) {
     var selectedPatient by remember { mutableStateOf<PatientDto?>(null) }
@@ -288,7 +290,6 @@ fun SubjectSelectScreen(
                             selected = patient == selectedPatient,
                             onClick = {
                                 selectedPatient = patient
-                                onNavigateToDetail(patient)
                             }
                         )
                     }
@@ -303,7 +304,7 @@ fun SubjectSelectScreen(
                     .background(Color.White)
                     .border(1.dp, G200, RoundedCornerShape(0.dp))
                     .navigationBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -314,12 +315,19 @@ fun SubjectSelectScreen(
                     height = 52.dp,
                     onClick = onNavigateToRegister,
                 )
+                OutlinedActionButton(
+                    text = "이력 보기",
+                    leadingIcon = Icons.Default.History,
+                    modifier = Modifier.weight(1f),
+                    height = 52.dp,
+                    onClick = { selectedPatient?.let { onNavigateToDetail(it) } },
+                )
                 FilledButton(
                     text = "측정 시작",
                     leadingIcon = Icons.AutoMirrored.Filled.ArrowForward,
-                    modifier = Modifier.weight(1.4f),
+                    modifier = Modifier.weight(1f),
                     height = 52.dp,
-                    onClick = { selectedPatient?.let { onNavigateToDetail(it) } },
+                    onClick = { selectedPatient?.let { onNavigateToMeasure(it) } },
                 )
             }
         }

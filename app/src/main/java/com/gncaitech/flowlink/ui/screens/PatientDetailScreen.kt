@@ -10,7 +10,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -39,7 +38,6 @@ import com.gncaitech.flowlink.ui.theme.NavyFaint
 fun PatientDetailScreen(
     patient: PatientDto,
     onBack: () -> Unit = {},
-    onStartMeasure: () -> Unit = {},
 ) {
     var sessions by remember { mutableStateOf<List<SessionDto>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -240,41 +238,6 @@ fun PatientDetailScreen(
             Spacer(Modifier.height(16.dp))
         }
 
-        // 하단 측정 시작 버튼
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.White)
-                .border(1.dp, G200, RoundedCornerShape(0.dp))
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-                    .clip(RoundedCornerShape(26.dp))
-                    .background(ArtRed)
-                    .clickable(
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() }
-                    ) { onStartMeasure() },
-                contentAlignment = Alignment.Center
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        "측정 시작",
-                        style = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = Color.White)
-                    )
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null,
-                        tint = Color.White, modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-        }
     }
 }
 
