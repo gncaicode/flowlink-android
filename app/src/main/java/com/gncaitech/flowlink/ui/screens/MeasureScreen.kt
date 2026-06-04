@@ -730,7 +730,7 @@ fun MeasureScreen(
                                 id = "${patient?.id ?: "unknown"}-set${currentSet}-${System.currentTimeMillis()}",
                                 patientId = patient?.id ?: "unknown",
                                 date = today,
-                                kind = "grip",
+                                kind = config.kind,
                                 repsCompleted = reps,
                                 repsTarget = target,
                                 postureScore = 0,

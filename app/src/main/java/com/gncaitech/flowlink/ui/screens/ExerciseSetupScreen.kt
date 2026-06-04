@@ -38,6 +38,7 @@ data class ExerciseConfig(
     val totalSets: Int  = 3,
     val targetReps: Int = 15,
     val setSeconds: Int = 120,
+    val kind: String    = "grip",
 )
 
 @Composable
@@ -115,25 +116,73 @@ fun ExerciseSetupScreen(
                     patient?.pid ?: "-",
                     style = TextStyle(fontFamily = MontserratFamily, fontSize = 10.sp, color = SetupFgLabel)
                 )
-                Spacer(Modifier.weight(1f))
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(MedTeal.copy(alpha = 0.18f))
-                        .border(1.dp, MedTeal.copy(alpha = 0.40f), RoundedCornerShape(6.dp))
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
-                ) {
-                    Text(
-                        "공쥐기",
-                        style = TextStyle(
-                            fontFamily = MontserratFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp,
-                            color = MedTeal
-                        )
-                    )
+
+//                Spacer(Modifier.weight(1f))
+//                Box(
+//                    modifier = Modifier
+//                        .clip(RoundedCornerShape(6.dp))
+//                        .background(MedTeal.copy(alpha = 0.18f))
+//                        .border(1.dp, MedTeal.copy(alpha = 0.40f), RoundedCornerShape(6.dp))
+//                        .padding(horizontal = 8.dp, vertical = 3.dp)
+//                ) {
+//                    Text(
+//                        "공쥐기",
+//                        style = TextStyle(
+//                            fontFamily = MontserratFamily,
+//                            fontWeight = FontWeight.Bold,
+//                            fontSize = 11.sp,
+//                            color = MedTeal
+//                        )
+//                    )
+//                }
+
+            }
+
+            val kindOptions = listOf(
+                "grip"              to "공쥐기",
+                "dumbbell"          to "덤벨컬",
+                "wrist_rotation"    to "손목회전",
+            )
+
+            //운동종류
+            SetupCard(title = "운동 종류") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ){
+                    kindOptions.forEach { (key,label) ->
+                        val selected = config.kind == key
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(40.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (selected) MedTeal else Color.White.copy(alpha = 0.08f))
+                                .border(
+                                    1.dp,
+                                    if (selected) MedTeal else Color.White.copy(alpha = 0.14f),
+                                    RoundedCornerShape(10.dp)
+                                )
+                                .clickable(
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }
+                                ) { onConfigChange(config.copy(kind = key)) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                label,
+                                style = TextStyle(
+                                    fontFamily = MontserratFamily,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                    fontSize = 12.sp,
+                                    color = if (selected) Color.White else SetupFgDim
+                                )
+                            )
+                        }
+                    }
                 }
             }
+
 
             // 세트 수
             SetupCard(title = "세트 수") {
@@ -224,6 +273,7 @@ fun ExerciseSetupScreen(
                     )
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                    SummaryItem("종류", kindOptions.find { it.first == config.kind }?.second ?: "공쥐기" )
                     SummaryItem("횟수", "${config.totalSets * config.targetReps}회")
                     SummaryItem("시간", timeLabel)
                     SummaryItem("세트", "${config.totalSets}세트")
@@ -294,7 +344,11 @@ private fun StepperRow(
             modifier = Modifier
                 .size(40.dp)
                 .clip(CircleShape)
-                .background(if (value > min) Color.White.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.05f))
+                .background(
+                    if (value > min) Color.White.copy(alpha = 0.12f) else Color.White.copy(
+                        alpha = 0.05f
+                    )
+                )
                 .border(1.dp, Color.White.copy(alpha = 0.14f), CircleShape)
                 .clickable(
                     enabled = value > min,
@@ -330,7 +384,11 @@ private fun StepperRow(
                 .size(40.dp)
                 .clip(CircleShape)
                 .background(if (value < max) MedTeal.copy(alpha = 0.20f) else Color.White.copy(alpha = 0.05f))
-                .border(1.dp, if (value < max) MedTeal.copy(alpha = 0.50f) else Color.White.copy(alpha = 0.14f), CircleShape)
+                .border(
+                    1.dp,
+                    if (value < max) MedTeal.copy(alpha = 0.50f) else Color.White.copy(alpha = 0.14f),
+                    CircleShape
+                )
                 .clickable(
                     enabled = value < max,
                     indication = null,
