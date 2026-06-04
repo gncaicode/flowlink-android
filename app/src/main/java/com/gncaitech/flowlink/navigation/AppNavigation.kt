@@ -18,7 +18,9 @@ import com.gncaitech.flowlink.ui.screens.SubjectRegisterScreen
 import com.gncaitech.flowlink.ui.screens.SubjectSelectScreen
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
+import com.gncaitech.flowlink.ui.screens.ResultScreen
 import com.gncaitech.flowlink.ui.screens.WithCameraPermission
 
 
@@ -27,7 +29,9 @@ fun AppNavigation() {
     val navController = rememberNavController()
 
     //NavHost 바로 위에 추가
-    var selectedPatient by remember { mutableStateOf<PatientDto?>(null) }
+    var selectedPatient     by remember { mutableStateOf<PatientDto?>(null) }
+    var resultTotalReps     by remember { mutableIntStateOf(0) }
+    var resultTotalSeconds  by remember { mutableIntStateOf(0) }
 
     NavHost(
         navController = navController,
@@ -126,9 +130,33 @@ fun AppNavigation() {
                 MeasureScreen(
                     patient = selectedPatient,
                     onClose = { navController.popBackStack() },
-                    onFinish = { navController.popBackStack() }
+                    onFinish = { totalReps, totalSecs ->
+                        resultTotalReps     = totalReps
+                        resultTotalSeconds  = totalSecs
+                        navController.navigate("result") {
+                            popUpTo("measure") { inclusive = true }
+                        }
+                    }
                 )
             }
         }
+
+
+        composable("result") {
+            ResultScreen(
+                patient         = selectedPatient,
+                totalReps       = resultTotalReps,
+                repsTarget      = 15,
+                setsCompleted   = 3,
+                totalSets       = 3,
+                totalSeconds    = resultTotalSeconds,
+                onBack = {
+                    navController.navigate("subject_select") {
+                        popUpTo("result") { inclusive = true }
+                    }
+                }
+            )
+        }
+
     }
 }

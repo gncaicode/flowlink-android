@@ -94,7 +94,7 @@ private val FgLabel     = Color.White.copy(alpha = 0.55f)
 fun MeasureScreen(
     patient: PatientDto? = null,
     onClose: () -> Unit = {},
-    onFinish: () -> Unit = {},
+    onFinish: (totalReps: Int, totalSeconds: Int) -> Unit = {_, _ -> },
 ) {
     val context = LocalContext.current
 
@@ -102,11 +102,14 @@ fun MeasureScreen(
     val totalSets  = 3
     val setSeconds = 120
 
-    var reps       by remember { mutableIntStateOf(0) }
-    var currentSet by remember { mutableIntStateOf(1) }
-    var seconds    by remember { mutableIntStateOf(0) }
-    var paused     by remember { mutableStateOf(false) }
-    var hand       by remember { mutableStateOf("right") }
+    var reps            by remember { mutableIntStateOf(0) }
+    var currentSet      by remember { mutableIntStateOf(1) }
+    var seconds         by remember { mutableIntStateOf(0) }
+    var paused          by remember { mutableStateOf(false) }
+    var hand            by remember { mutableStateOf("right") }
+    var totalRepsAcc    by remember { mutableStateOf(0) }
+    var totalSecsAcc    by remember { mutableStateOf(0) }
+
     var lensFacing by remember { mutableIntStateOf(CameraSelector.LENS_FACING_BACK) }
     val landmarksState = remember { mutableStateOf<List<Pair<Float, Float>>>(emptyList()) }
     var landmarks by landmarksState
@@ -719,15 +722,17 @@ fun MeasureScreen(
                                 }
                             }
 
+                            val accReps = totalRepsAcc + reps
+                            val accSecs = totalSecsAcc + seconds
                             if (currentSet < totalSets) {
+                                totalRepsAcc = accReps
+                                totalSecsAcc = accSecs
                                 currentSet++
                                 reps = 0
                                 seconds = 0
                             } else {
-                                // 마지막 세트 완료 -> 세션 종료
-                                onFinish()
+                                onFinish(accReps, accSecs)
                             }
-
                         },
                     contentAlignment = Alignment.Center
                 ) {
