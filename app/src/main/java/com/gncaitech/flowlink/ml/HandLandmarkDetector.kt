@@ -16,6 +16,7 @@ class HandLandmarkDetector(
     private val onResult: (List<List<Pair<Float,Float>>>) -> Unit,
     private val onGrip: (isClosed: Boolean) -> Unit = {},
     private val onGripPercent: (Int) -> Unit = {},
+    private val onLandmarks3D: (List<Triple<Float,Float,Float>>) -> Unit = {},
 ) {
     private var handLandmarker: HandLandmarker? = null
 
@@ -44,6 +45,7 @@ class HandLandmarkDetector(
                     val closed = isHandClosed(pts)
                     onGrip(closed)
                     onGripPercent(calcGripPercent(pts))
+                    onLandmarks3D(hand.map { Triple(it.x(),it.y(),it.z()) })
                 }
             }
             .setErrorListener{ error -> error.printStackTrace() }

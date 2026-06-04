@@ -120,6 +120,7 @@ fun MeasureScreen(
     var gripPercent by gripPercentState
     var repSpeedSec by remember { mutableStateOf(0.0f) }
     var lastGripOpenTimeState = remember { mutableStateOf(0L) }
+    val landmarks3DState = remember { mutableStateOf<List<Triple<Float,Float,Float>>>(emptyList()) }
     var showExitDialog by remember { mutableStateOf(false) }
 
     val executor = remember { Executors.newSingleThreadExecutor() }
@@ -149,6 +150,9 @@ fun MeasureScreen(
             },
             onGripPercent = { percent ->
                 gripPercentState.value = percent
+            },
+            onLandmarks3D = { pts ->
+                landmarks3DState.value = pts
             }
         )
     }
@@ -717,6 +721,11 @@ fun MeasureScreen(
                                 else -> "major"
                             }
 
+                            val lm = landmarks3DState.value
+                            val landmarksJson = if (lm.isEmpty()) "" else lm.joinToString(",","[","]"){
+                                "[${it.first},${it.second},${it.third}]"
+                            }
+
                             val req = SessionRequest(
                                 id = "${patient?.id ?: "unknown"}-set${currentSet}-${System.currentTimeMillis()}",
                                 patientId = patient?.id ?: "unknown",
@@ -726,7 +735,8 @@ fun MeasureScreen(
                                 repsTarget = target,
                                 postureScore = 0,
                                 durationSec = seconds,
-                                feedback = feedback
+                                feedback = feedback,
+                                landmarks = landmarksJson
                             )
 
                             //백그라운드에서 저장 (실패해도 진행)

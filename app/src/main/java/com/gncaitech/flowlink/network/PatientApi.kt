@@ -51,6 +51,7 @@ data class SessionRequest(
     val postureScore: Int, // 0 (자세 피드백 미구현)
     val durationSec: Int,
     val feedback: String, //perfect minor major
+    val landmarks: String = "",
 )
 
 data class SessionDto(
