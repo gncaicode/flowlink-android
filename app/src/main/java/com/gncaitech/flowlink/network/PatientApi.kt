@@ -7,6 +7,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Body
+import retrofit2.http.Query
 
 data class PatientDto(
     val id: String,
@@ -52,6 +53,18 @@ data class SessionRequest(
     val feedback: String, //perfect minor major
 )
 
+data class SessionDto(
+    val id: String,
+    val patientId: String,
+    val date: String,
+    val kind: String,
+    val repsCompleted: Int,
+    val repsTarget: Int,
+    val postureScore: Int,
+    val durationSec: Int,
+    val feedback: String,
+)
+
 interface PatientApi {
     @GET("api/patients")
     suspend fun getPatients():Response<List<PatientDto>>
@@ -61,6 +74,9 @@ interface PatientApi {
 
     @POST("api/sessions")
     suspend fun saveSession(@Body body: SessionRequest):Response<Unit>
+
+    @GET("api/sessions")
+    suspend fun getSessions(@Query("patientId") patientId: String): Response<List<SessionDto>>
 }
 
 val patientApi: PatientApi = Retrofit.Builder()

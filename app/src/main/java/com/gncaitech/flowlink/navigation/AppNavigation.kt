@@ -22,6 +22,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import com.gncaitech.flowlink.ui.screens.ExerciseConfig
 import com.gncaitech.flowlink.ui.screens.ExerciseSetupScreen
+import com.gncaitech.flowlink.ui.screens.PatientDetailScreen
 import com.gncaitech.flowlink.ui.screens.ResultScreen
 import com.gncaitech.flowlink.ui.screens.WithCameraPermission
 
@@ -108,9 +109,9 @@ fun AppNavigation() {
                 onNavigateToRegister = {
                     navController.navigate("subject_register")
                 },
-                onNavigateToMeasure = { patient ->
+                onNavigateToDetail = { patient ->
                     selectedPatient = patient
-                    navController.navigate("setup")
+                    navController.navigate("detail")
                 },
                 onLogout = {
                     navController.navigate("login") {
@@ -118,6 +119,16 @@ fun AppNavigation() {
                     }
                 }
             )
+        }
+
+        composable("detail") {
+            selectedPatient?.let { patient ->
+                PatientDetailScreen(
+                    patient = patient,
+                    onBack = { navController.popBackStack() },
+                    onStartMeasure = { navController.navigate("setup") }
+                )
+            }
         }
 
         composable("subject_register") {

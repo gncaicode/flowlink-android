@@ -67,7 +67,7 @@ import com.gncaitech.flowlink.network.patientApi
 @Composable
 fun SubjectSelectScreen(
     onNavigateToRegister: () -> Unit = {},
-    onNavigateToMeasure: (PatientDto) -> Unit = {},
+    onNavigateToDetail: (PatientDto) -> Unit = {},
     onLogout: () -> Unit = {},
 ) {
     var selectedPatient by remember { mutableStateOf<PatientDto?>(null) }
@@ -286,7 +286,10 @@ fun SubjectSelectScreen(
                             scheduled = patient.scheduled ?: "",
                             status = patient.status ?: "ready",
                             selected = patient == selectedPatient,
-                            onClick = { selectedPatient = patient }
+                            onClick = {
+                                selectedPatient = patient
+                                onNavigateToDetail(patient)
+                            }
                         )
                     }
                 }
@@ -316,7 +319,7 @@ fun SubjectSelectScreen(
                     leadingIcon = Icons.AutoMirrored.Filled.ArrowForward,
                     modifier = Modifier.weight(1.4f),
                     height = 52.dp,
-                    onClick = { selectedPatient?.let { onNavigateToMeasure(it) } },
+                    onClick = { selectedPatient?.let { onNavigateToDetail(it) } },
                 )
             }
         }
