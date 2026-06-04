@@ -45,7 +45,7 @@ data class SessionRequest(
     val id: String,
     val patientId: String,
     val date: String,
-    val kind: String, // grip
+    val kind: String, // grip | dumbbell | wrist_rotation
     val repsCompleted: Int,
     val repsTarget: Int,
     val postureScore: Int, // 0 (자세 피드백 미구현)
