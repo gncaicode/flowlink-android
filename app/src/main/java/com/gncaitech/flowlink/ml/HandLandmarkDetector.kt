@@ -15,6 +15,7 @@ class HandLandmarkDetector(
     context: Context,
     private val onResult: (List<List<Pair<Float,Float>>>) -> Unit,
     private val onGrip: (isClosed: Boolean) -> Unit = {},
+    private val onGripPercent: (Int) -> Unit = {},
 ) {
     private var handLandmarker: HandLandmarker? = null
 
@@ -38,9 +39,11 @@ class HandLandmarkDetector(
 
                 // 그립 감지 - 첫 번째 손만 사용
                 val hand = result.landmarks().firstOrNull()
-                if (hand != null && hand.size == 21 ) {
-                    val closed = isHandClosed(hand.map { Pair(it.x(), it.y()) })
+                if (hand != null && hand.size == 21) {
+                    val pts = hand.map{ Pair(it.x(), it.y()) }
+                    val closed = isHandClosed(pts)
                     onGrip(closed)
+                    onGripPercent(calcGripPercent(pts))
                 }
             }
             .setErrorListener{ error -> error.printStackTrace() }
@@ -84,4 +87,13 @@ class HandLandmarkDetector(
         return closedCount >= 3  // 4개 중 3개 이상 구부러지면 "쥔 상태"
     }
 
+    private fun calcGripPercent(pts: List<Pair<Float, Float>>): Int {
+        val fingerTips = listOf(8, 12, 16, 20)
+        val fingerPips = listOf(6, 10, 14, 18)
+        var count = 0
+        for (i in fingerTips.indices) {
+            if (pts[fingerTips[i]].second > pts[fingerPips[i]].second) count++
+        }
+        return (count * 100) / 4
+    }
 }

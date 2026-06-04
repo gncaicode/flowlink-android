@@ -116,6 +116,10 @@ fun MeasureScreen(
     var landmarks by landmarksState
     val wasOpenState = remember { mutableStateOf(true) }
     var wasOpen by wasOpenState
+    val gripPercentState = remember { mutableStateOf(0) }
+    var gripPercent by gripPercentState
+    var repSpeedSec by remember { mutableStateOf(0.0f) }
+    var lastGripOpenTimeState = remember { mutableStateOf(0L) }
     var showExitDialog by remember { mutableStateOf(false) }
 
     val executor = remember { Executors.newSingleThreadExecutor() }
@@ -132,9 +136,19 @@ fun MeasureScreen(
                 } else {
                     if (!wasOpenState.value) {
                         reps++
+                        //사이클 소요 시간 계산
+                        val now = System.currentTimeMillis()
+                        val last = lastGripOpenTimeState.value
+                        if (last > 0) {
+                            repSpeedSec = (now - last) / 1000f
+                        }
+                        lastGripOpenTimeState.value = now
                     }
                     wasOpenState.value = true
                 }
+            },
+            onGripPercent = { percent ->
+                gripPercentState.value = percent
             }
         )
     }
@@ -656,9 +670,9 @@ fun MeasureScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                MetricChip(label = "그립", value = "78",  unit = "%", modifier = Modifier.weight(1f))
-                MetricChip(label = "속도", value = "2.1", unit = "s", modifier = Modifier.weight(1f))
-                MetricChip(label = "범위", value = "92",  unit = "°", modifier = Modifier.weight(1f))
+                MetricChip(label = "그립", value = "$gripPercent",  unit = "%", modifier = Modifier.weight(1f))
+                MetricChip(label = "속도", value = if (repSpeedSec > 0) "%.1f".format(repSpeedSec) else "-", unit = "s", modifier =
+                Modifier.weight(1f))
             }
 
             // Controls
