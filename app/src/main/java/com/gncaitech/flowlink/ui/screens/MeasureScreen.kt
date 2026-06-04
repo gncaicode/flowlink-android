@@ -586,15 +586,15 @@ fun MeasureScreen(
         }
 
         // ── Right action stack (bottom: 200, right: 12) ───────────────
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 12.dp, bottom = 200.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            RightActionBtn(icon = Icons.Default.CenterFocusWeak, label = "기준 설정")
-            RightActionBtn(icon = Icons.Default.FitnessCenter,   label = "미션 선택")
-        }
+//        Column(
+//            modifier = Modifier
+//                .align(Alignment.BottomEnd)
+//                .padding(end = 12.dp, bottom = 200.dp),
+//            verticalArrangement = Arrangement.spacedBy(8.dp)
+//        ) {
+//            RightActionBtn(icon = Icons.Default.CenterFocusWeak, label = "기준 설정")
+//            RightActionBtn(icon = Icons.Default.FitnessCenter,   label = "미션 선택")
+//        }
 
         // ── Bottom HUD (bottom: 16) ────────────────────────────────────
         Column(
