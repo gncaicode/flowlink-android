@@ -20,6 +20,8 @@ import kotlinx.coroutines.delay
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
+import com.gncaitech.flowlink.ui.screens.ExerciseConfig
+import com.gncaitech.flowlink.ui.screens.ExerciseSetupScreen
 import com.gncaitech.flowlink.ui.screens.ResultScreen
 import com.gncaitech.flowlink.ui.screens.WithCameraPermission
 
@@ -30,6 +32,7 @@ fun AppNavigation() {
 
     //NavHost 바로 위에 추가
     var selectedPatient     by remember { mutableStateOf<PatientDto?>(null) }
+    var exerciseConfig      by remember { mutableStateOf(ExerciseConfig()) }
     var resultTotalReps     by remember { mutableIntStateOf(0) }
     var resultTotalSeconds  by remember { mutableIntStateOf(0) }
 
@@ -107,7 +110,7 @@ fun AppNavigation() {
                 },
                 onNavigateToMeasure = { patient ->
                     selectedPatient = patient
-                    navController.navigate("measure")
+                    navController.navigate("setup")
                 },
                 onLogout = {
                     navController.navigate("login") {
@@ -124,11 +127,21 @@ fun AppNavigation() {
             )
         }
 
+        composable("setup") {
+            ExerciseSetupScreen(
+                patient = selectedPatient,
+                config = exerciseConfig,
+                onConfigChange = { exerciseConfig = it },
+                onBack = { navController.popBackStack() },
+                onStart = { navController.navigate("measure") }
+            )
+        }
 
         composable("measure") {
             WithCameraPermission {
                 MeasureScreen(
                     patient = selectedPatient,
+                    config = exerciseConfig,
                     onClose = { navController.popBackStack() },
                     onFinish = { totalReps, totalSecs ->
                         resultTotalReps     = totalReps

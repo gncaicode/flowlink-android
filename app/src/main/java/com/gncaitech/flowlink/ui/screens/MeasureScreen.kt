@@ -93,14 +93,15 @@ private val FgLabel     = Color.White.copy(alpha = 0.55f)
 @Composable
 fun MeasureScreen(
     patient: PatientDto? = null,
+    config: ExerciseConfig = ExerciseConfig(),
     onClose: () -> Unit = {},
     onFinish: (totalReps: Int, totalSeconds: Int) -> Unit = {_, _ -> },
 ) {
     val context = LocalContext.current
 
-    val target     = 15
-    val totalSets  = 3
-    val setSeconds = 120
+    val target     = config.targetReps
+    val totalSets  = config.totalSets
+    val setSeconds = config.setSeconds
 
     var reps            by remember { mutableIntStateOf(0) }
     var currentSet      by remember { mutableIntStateOf(1) }
