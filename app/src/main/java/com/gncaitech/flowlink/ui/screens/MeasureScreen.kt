@@ -153,7 +153,15 @@ fun MeasureScreen(
             },
             onLandmarks3D = { pts ->
                 landmarks3DState.value = pts
-            }
+            },
+            onCurlRep = {
+                reps++
+                val now = System.currentTimeMillis()
+                val last = lastGripOpenTimeState.value
+                if (last > 0) repSpeedSec = (now - last) / 1000f
+                lastGripOpenTimeState.value = now
+            },
+            exerciseKind = config.kind,
         )
     }
     val scope = rememberCoroutineScope()

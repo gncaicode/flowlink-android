@@ -17,8 +17,13 @@ class HandLandmarkDetector(
     private val onGrip: (isClosed: Boolean) -> Unit = {},
     private val onGripPercent: (Int) -> Unit = {},
     private val onLandmarks3D: (List<Triple<Float,Float,Float>>) -> Unit = {},
+    private val onCurlRep: () -> Unit = {},
+    private val exerciseKind: String = "grip",
 ) {
     private var handLandmarker: HandLandmarker? = null
+    private var smoothWristY = -1f
+    private var curlIsUp = false
+    private var CURL_THRESHOLD = 0.15f
 
     init {
         val baseOptions = BaseOptions.builder()
@@ -46,6 +51,7 @@ class HandLandmarkDetector(
                     onGrip(closed)
                     onGripPercent(calcGripPercent(pts))
                     onLandmarks3D(hand.map { Triple(it.x(),it.y(),it.z()) })
+                    if (exerciseKind == "dumbbell") detectCurl(pts)
                 }
             }
             .setErrorListener{ error -> error.printStackTrace() }
@@ -97,5 +103,28 @@ class HandLandmarkDetector(
             if (pts[fingerTips[i]].second > pts[fingerPips[i]].second) count++
         }
         return (count * 100) / 4
+    }
+
+    private fun detectCurl(pts:List<Pair<Float,Float>>) {
+        val wristY = pts[0].second
+
+        if (smoothWristY < 0f) {
+            smoothWristY = wristY
+            return
+        }
+
+        //팔이 내려가 있을 때만 기준값 업데이트
+        if (!curlIsUp){
+            smoothWristY = smoothWristY * 0.90f + wristY * 0.10f
+        }
+
+        val delta = smoothWristY - wristY // 양수 = 손목이 기준보다 위
+
+        if (!curlIsUp && delta > CURL_THRESHOLD) {
+            curlIsUp = true
+        } else if (curlIsUp && delta < CURL_THRESHOLD/ 2f) {
+            curlIsUp = false
+            onCurlRep()
+        }
     }
 }
