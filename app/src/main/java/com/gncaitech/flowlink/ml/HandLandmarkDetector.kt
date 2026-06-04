@@ -11,6 +11,20 @@ import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarker
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarkerResult
 
+//⏺손목회전 인식 원리
+//
+//손목회전은 검지 MCP(5번)와 새끼 MCP(17번)의 X좌표 차이로 감지합니다.
+//
+//손바닥이 앞(카메라 방향): pts[5].x > pts[17].x → xDiff 양수
+//손바닥이 뒤(반대 방향):   pts[5].x < pts[17].x → xDiff 음수
+//
+//뒤로 돌림 → 앞으로 복귀 = 1회
+//
+//그립 감지와 동일한 구조입니다:
+//- isHandClosed → isBack (손등이 앞으로)
+//- wasOpen → hasGoneBack (뒤로 돌렸던 상태)
+
+
 class HandLandmarkDetector(
     context: Context,
     private val onResult: (List<List<Pair<Float,Float>>>) -> Unit,
@@ -18,11 +32,14 @@ class HandLandmarkDetector(
     private val onGripPercent: (Int) -> Unit = {},
     private val onLandmarks3D: (List<Triple<Float,Float,Float>>) -> Unit = {},
     private val onCurlRep: () -> Unit = {},
+    private val onWristRep: () -> Unit = {},
     private val exerciseKind: String = "grip",
 ) {
     private var handLandmarker: HandLandmarker? = null
     private var smoothWristY = -1f
     private var curlIsUp = false
+    private var wristHasGoneBack = false
+    private val WRIST_THRESHOLD = 0.10f
     private var CURL_THRESHOLD = 0.15f
 
     init {
@@ -52,6 +69,7 @@ class HandLandmarkDetector(
                     onGripPercent(calcGripPercent(pts))
                     onLandmarks3D(hand.map { Triple(it.x(),it.y(),it.z()) })
                     if (exerciseKind == "dumbbell") detectCurl(pts)
+                    if (exerciseKind == "wrist_rotation") detectWristRotation(pts)
                 }
             }
             .setErrorListener{ error -> error.printStackTrace() }
@@ -125,6 +143,21 @@ class HandLandmarkDetector(
         } else if (curlIsUp && delta < CURL_THRESHOLD/ 2f) {
             curlIsUp = false
             onCurlRep()
+        }
+    }
+
+    private fun detectWristRotation(pts: List<Pair<Float, Float>>) {
+        //검지 MCP(5) - 새끼 MCP(17) X 차이
+        val xDiff = pts[5].first - pts[17].first
+
+        val isBack  = xDiff < -WRIST_THRESHOLD // 손등이 카메라 방향
+        val isFront = xDiff > WRIST_THRESHOLD  // 손등이 카메라 방향
+
+        if (isBack && !wristHasGoneBack) {
+            wristHasGoneBack = true
+        } else if (isFront && wristHasGoneBack) {
+            wristHasGoneBack = false
+            onWristRep()
         }
     }
 }
