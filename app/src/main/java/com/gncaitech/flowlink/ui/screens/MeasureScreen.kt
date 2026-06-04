@@ -162,7 +162,7 @@ fun MeasureScreen(
                 lastGripOpenTimeState.value = now
             },
             onWristRep = {
-                         reps++
+                reps++
                 val now = System.currentTimeMillis()
                 val last = lastGripOpenTimeState.value
                 if (last > 0) repSpeedSec = (now - last) / 1000f
@@ -638,51 +638,51 @@ fun MeasureScreen(
                 .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // AI feedback bar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(MedTeal.copy(alpha = 0.18f))
-                    .border(1.dp, MedTeal.copy(alpha = 0.40f), RoundedCornerShape(14.dp))
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(34.dp)
-                        .clip(CircleShape)
-                        .background(MedTeal),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        "좋아요! 자세가 정확합니다",
-                        style = TextStyle(
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 13.sp,
-                            color = Color.White
-                        )
-                    )
-                    Text(
-                        "손목 162° · 그립 78% · 안정 ↑",
-                        style = TextStyle(
-                            fontFamily = MontserratFamily,
-                            fontSize = 11.sp,
-                            letterSpacing = (0.04f * 11f).sp,
-                            color = Color.White.copy(alpha = 0.65f)
-                        )
-                    )
-                }
-            }
+            // AI feedback bar (주석 처리)
+//            Row(
+//                modifier = Modifier
+//                    .fillMaxWidth()
+//                    .clip(RoundedCornerShape(14.dp))
+//                    .background(MedTeal.copy(alpha = 0.18f))
+//                    .border(1.dp, MedTeal.copy(alpha = 0.40f), RoundedCornerShape(14.dp))
+//                    .padding(horizontal = 14.dp, vertical = 12.dp),
+//                verticalAlignment = Alignment.CenterVertically,
+//                horizontalArrangement = Arrangement.spacedBy(12.dp)
+//            ) {
+//                Box(
+//                    modifier = Modifier
+//                        .size(34.dp)
+//                        .clip(CircleShape)
+//                        .background(MedTeal),
+//                    contentAlignment = Alignment.Center
+//                ) {
+//                    Icon(
+//                        imageVector = Icons.Default.CheckCircle,
+//                        contentDescription = null,
+//                        tint = Color.White,
+//                        modifier = Modifier.size(20.dp)
+//                    )
+//                }
+//                Column(modifier = Modifier.weight(1f)) {
+//                    Text(
+//                        "좋아요! 자세가 정확합니다",
+//                        style = TextStyle(
+//                            fontWeight = FontWeight.SemiBold,
+//                            fontSize = 13.sp,
+//                            color = Color.White
+//                        )
+//                    )
+//                    Text(
+//                        "손목 162° · 그립 78% · 안정 ↑",
+//                        style = TextStyle(
+//                            fontFamily = MontserratFamily,
+//                            fontSize = 11.sp,
+//                            letterSpacing = (0.04f * 11f).sp,
+//                            color = Color.White.copy(alpha = 0.65f)
+//                        )
+//                    )
+//                }
+//            }
 
             // Metric chips
             Row(
