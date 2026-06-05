@@ -122,6 +122,8 @@ fun MeasureScreen(
     var lastGripOpenTimeState = remember { mutableStateOf(0L) }
     val landmarks3DState = remember { mutableStateOf<List<Triple<Float,Float,Float>>>(emptyList()) }
     var showExitDialog by remember { mutableStateOf(false) }
+    var isResting by remember { mutableStateOf(false) }
+    var restRemaining by remember { mutableStateOf(0) }
 
     val executor = remember { Executors.newSingleThreadExecutor() }
 
@@ -188,13 +190,28 @@ fun MeasureScreen(
     val patientPid = patient?.pid ?: "-"
     val initial = patientName.take(1)
 
-    // Running timer — cancelled automatically when paused changes to true
-    LaunchedEffect(paused) {
-        if (!paused) {
+    // Running timer — cancelled automatically when paused or isResting changes
+    LaunchedEffect(paused, isResting) {
+        if (!paused && !isResting) {
             while (seconds < setSeconds) {
                 delay(1000L)
                 seconds = minOf(setSeconds, seconds + 1)
             }
+        }
+    }
+
+    //휴식 타이머 LaunchedEffect
+    LaunchedEffect(isResting) {
+        if (isResting) {
+            restRemaining = config.restSeconds
+            while (restRemaining > 0) {
+                delay(1000L)
+                restRemaining--
+            }
+            isResting = false
+            currentSet++
+            reps = 0
+            seconds = 0
         }
     }
 
@@ -222,6 +239,76 @@ fun MeasureScreen(
                     }
                 }
             )
+        }
+
+        //휴식 오버레이
+        if (isResting) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xCC0A1422)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ){
+                    Text(
+                        "휴식",
+                        style = TextStyle(
+                            fontFamily = MontserratFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            letterSpacing = (0.14f * 14f).sp,
+                            color = Color.White.copy(alpha = 0.60f)
+                        )
+                    )
+                    Text(
+                        restRemaining.toString(),
+                        style = TextStyle(
+                            fontFamily = MontserratFamily,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 96.sp,
+                            color = Color.White,
+                            lineHeight = 96.sp
+                        )
+                    )
+                    Text(
+                        "다음 세트 $currentSet / $totalSets",
+                        style = TextStyle(
+                            fontSize = 14.sp,
+                            color = Color.White.copy(alpha = 0.55f)
+                        )
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    //바로 시작 버튼
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(28.dp))
+                            .background(MedTeal)
+                            .clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            ){
+                                isResting = false
+                                currentSet++
+                                reps = 0
+                                seconds = 0
+                            }
+                            .padding(horizontal = 32.dp, vertical = 14.dp),
+                        contentAlignment = Alignment.Center
+                    ){
+                        Text(
+                            "바로 시작",
+                            style = TextStyle(
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 15.sp,
+                                color = Color.White
+                            )
+                        )
+                    }
+                }
+            }
         }
 
         // z0 · Camera-style radial backdrop
@@ -737,9 +824,10 @@ fun MeasureScreen(
                             }
 
                             val lm = landmarks3DState.value
-                            val landmarksJson = if (lm.isEmpty()) "" else lm.joinToString(",","[","]"){
-                                "[${it.first},${it.second},${it.third}]"
-                            }
+                            val landmarksJson =
+                                if (lm.isEmpty()) "" else lm.joinToString(",", "[", "]") {
+                                    "[${it.first},${it.second},${it.third}]"
+                                }
 
                             val req = SessionRequest(
                                 id = "${patient?.id ?: "unknown"}-set${currentSet}-${System.currentTimeMillis()}",
@@ -767,9 +855,7 @@ fun MeasureScreen(
                             if (currentSet < totalSets) {
                                 totalRepsAcc = accReps
                                 totalSecsAcc = accSecs
-                                currentSet++
-                                reps = 0
-                                seconds = 0
+                                isResting = true
                             } else {
                                 onFinish(accReps, accSecs)
                             }

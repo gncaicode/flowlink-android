@@ -39,6 +39,7 @@ data class ExerciseConfig(
     val targetReps: Int = 15,
     val setSeconds: Int = 120,
     val kind: String    = "grip",
+    val restSeconds: Int = 30
 )
 
 @Composable
@@ -233,6 +234,48 @@ fun ExerciseSetupScreen(
                                 ) { onConfigChange(config.copy(setSeconds = secs)) },
                             contentAlignment = Alignment.Center
                         ) {
+                            Text(
+                                label,
+                                style = TextStyle(
+                                    fontFamily = MontserratFamily,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                    fontSize = 11.sp,
+                                    color = if (selected) Color.White else SetupFgDim
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+
+            SetupCard(title = "세트 간 휴식 시간") {
+                val restOptions = listOf(15 to "15초", 30 to "30초", 45 to "45초", 60 to "1분")
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ){
+                    restOptions.forEach {(secs, label) ->
+                        val selected = config.restSeconds == secs
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(40.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (selected) MedTeal else Color.White.copy(alpha = 0.08f))
+                                .border(
+                                    1.dp,
+                                    if (selected) MedTeal else Color.White.copy(alpha = 0.14f),
+                                    RoundedCornerShape(10.dp)
+                                )
+                                .clickable(
+                                    indication = null,
+                                    interactionSource = remember {
+                                        MutableInteractionSource()
+                                    }
+                                ) { onConfigChange(config.copy(restSeconds = secs)) },
+                            contentAlignment = Alignment.Center
+                        ){
                             Text(
                                 label,
                                 style = TextStyle(
