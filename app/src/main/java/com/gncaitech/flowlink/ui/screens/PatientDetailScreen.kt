@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -33,6 +34,13 @@ import com.gncaitech.flowlink.ui.theme.MedTeal
 import com.gncaitech.flowlink.ui.theme.MontserratFamily
 import com.gncaitech.flowlink.ui.theme.Navy
 import com.gncaitech.flowlink.ui.theme.NavyFaint
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.platform.LocalDensity
 
 @Composable
 fun PatientDetailScreen(
@@ -200,6 +208,7 @@ fun PatientDetailScreen(
                     StatItem("최근 활동", lastDate)
                 }
                 Spacer(Modifier.height(12.dp))
+
             }
 
             Row(
@@ -375,5 +384,123 @@ private fun StatItem(label: String, value: String) {
             style = TextStyle(fontSize = 10.sp,color = G500)
         )
 
+    }
+}
+
+@Composable
+private fun SessionChart(sessions: List<SessionDto>) {
+    if (sessions.size < 2) return
+
+    val recent = sessions.sortedBy { it.date }.takeLast(10)
+    val maxReps = ( recent.maxOf { it.repsCompleted } ).coerceAtLeast(1)
+    val density = LocalDensity.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(Navy.copy(alpha = 0.06f))
+            .border(1.dp, Navy.copy(alpha = 0.12f), RoundedCornerShape(12.dp))
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ){
+        Text(
+            "횟수 추이",
+            style = TextStyle(
+                fontFamily = MontserratFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 10.sp,
+                letterSpacing = (0.14f * 10f).sp,
+                color = Navy
+            )
+        )
+
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(100.dp)
+        ) {
+            val barCount = recent.size
+            val spacing = 4.dp.toPx()
+            val barWidth = (size.width - spacing * (barCount - 1)) / barCount
+            val chartHeight = size.height - 16.dp.toPx() // 아래 날짜 공간
+
+            // 목표선 (점선)
+            val avgTarget = recent.map { it.repsTarget }.average().toFloat()
+            val targetY = chartHeight - (avgTarget / maxReps) * chartHeight
+            drawLine(
+                color = androidx.compose.ui.graphics.Color(0xFF2DD4BF),
+                start = Offset(0f, targetY),
+                end = Offset(size.width, targetY),
+                strokeWidth = 1.dp.toPx(),
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 4f))
+            )
+
+            // 바 그리기
+            recent.forEachIndexed { i, session ->
+                val x = i * (barWidth + spacing)
+                val achieveRate = session.repsCompleted.toFloat() /
+                        session.repsTarget.coerceAtLeast(1)
+                val barColor = when {
+                    achieveRate >= 1f   -> Color(0xFF2DD4BF)  // perfect
+                    achieveRate >= 0.5f -> Color(0xFFF6AD55) // minor
+                    else                -> Color(0xFFE53E3E)  // major
+                }
+                val barHeight = (session.repsCompleted.toFloat() / maxReps) *
+                        chartHeight
+                val top = chartHeight - barHeight
+
+                drawRoundRect(
+                    color = barColor.copy(alpha = 0.85f),
+                    topLeft = Offset(x, top),
+                    size = Size(barWidth, barHeight),
+                    cornerRadius = CornerRadius(3.dp.toPx())
+                )
+            }
+        }
+
+        //날짜 레이블
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ){
+            val step = if (recent.size <= 5) 1 else 2
+            recent.filterIndexed { i, _ -> i % step == 0 || i ==
+                    recent.lastIndex }
+                .forEach { session ->
+                    Text(
+                        session.date.takeLast(5),  // MM-DD
+                        style = TextStyle(
+                            fontFamily = MontserratFamily,
+                            fontSize = 9.sp,
+                            color = G500
+                        )
+                    )
+                }
+        }
+
+        //범례
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            listOf(
+                Color(0xFF2DD4BF) to "목표 달성",
+                Color(0xFFF6AD55) to "50% 이상",
+                Color(0xFFE53E3E) to "50% 미만",
+            ).forEach { (color, label) ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(color)
+                    )
+                    Text(label, style = TextStyle(fontSize = 9.sp, color = G500))
+                }
+            }
+        }
     }
 }
