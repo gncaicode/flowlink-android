@@ -72,6 +72,7 @@ import com.gncaitech.flowlink.ui.theme.Navy
 import com.gncaitech.flowlink.ui.theme.NavyFaint
 import kotlinx.coroutines.delay
 import androidx.camera.core.ImageAnalysis
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.runtime.DisposableEffect
 import com.gncaitech.flowlink.ml.HandLandmarkDetector
 import java.util.concurrent.Executors
@@ -79,6 +80,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import com.gncaitech.flowlink.network.patientApi
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.focus.focusModifier
 import com.gncaitech.flowlink.network.SessionRequest
 import kotlinx.coroutines.launch
 
@@ -589,57 +591,93 @@ fun MeasureScreen(
                         )
                     )
                 }
+
                 // Set indicator chips
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
+//                Row(
+//                    verticalAlignment = Alignment.CenterVertically,
+//                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+//                ) {
+//                    Text(
+//                        "SET",
+//                        style = TextStyle(
+//                            fontFamily = MontserratFamily,
+//                            fontWeight = FontWeight.Bold,
+//                            fontSize = 9.sp,
+//                            letterSpacing = (0.14f * 9f).sp,
+//                            color = Color.White.copy(alpha = 0.50f)
+//                        )
+//                    )
+//                    Spacer(Modifier.width(2.dp))
+//                    for (n in 1..totalSets) {
+//                        Box(
+//                            modifier = Modifier
+//                                .size(18.dp)
+//                                .clip(RoundedCornerShape(4.dp))
+//                                .background(
+//                                    when {
+//                                        n < currentSet -> MedTeal
+//                                        n == currentSet -> ArtRed
+//                                        else -> Color.White.copy(alpha = 0.15f)
+//                                    }
+//                                ),
+//                            contentAlignment = Alignment.Center
+//                        ) {
+//                            Text(
+//                                if (n < currentSet) "✓" else n.toString(),
+//                                style = TextStyle(
+//                                    fontFamily = MontserratFamily,
+//                                    fontWeight = FontWeight.Bold,
+//                                    fontSize = 10.sp,
+//                                    color = if (n <= currentSet) Color.White
+//                                            else Color.White.copy(alpha = 0.50f)
+//                                )
+//                            )
+//                        }
+//                    }
+//                    Text(
+//                        "/ $totalSets",
+//                        style = TextStyle(
+//                            fontFamily = MontserratFamily,
+//                            fontWeight = FontWeight.SemiBold,
+//                            fontSize = 11.sp,
+//                            color = Color.White.copy(alpha = 0.55f)
+//                        )
+//                    )
+//                }
+                // Set indicator chips
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ){
                     Text(
-                        "SET",
+                        "$currentSet / $totalSets 세트",
                         style = TextStyle(
                             fontFamily = MontserratFamily,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 9.sp,
-                            letterSpacing = (0.14f * 9f).sp,
-                            color = Color.White.copy(alpha = 0.50f)
+                            fontSize = 12.sp,
+                            color = Color.White
                         )
                     )
-                    Spacer(Modifier.width(2.dp))
-                    for (n in 1..totalSets) {
-                        Box(
-                            modifier = Modifier
-                                .size(18.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(
-                                    when {
-                                        n < currentSet -> MedTeal
-                                        n == currentSet -> ArtRed
-                                        else -> Color.White.copy(alpha = 0.15f)
-                                    }
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                if (n < currentSet) "✓" else n.toString(),
-                                style = TextStyle(
-                                    fontFamily = MontserratFamily,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 10.sp,
-                                    color = if (n <= currentSet) Color.White
-                                            else Color.White.copy(alpha = 0.50f)
-                                )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        for (n in 1..totalSets) {
+                            Box(
+                                modifier = Modifier
+                                    .height(6.dp)
+                                    .width(28.dp)
+                                    .clip(RoundedCornerShape(3.dp))
+                                    .background(
+                                        when {
+                                            n < currentSet      -> MedTeal
+                                            n == currentSet     -> ArtRed
+                                            else                -> Color.White.copy(alpha = 0.20f)
+                                        }
+                                    )
                             )
                         }
                     }
-                    Text(
-                        "/ $totalSets",
-                        style = TextStyle(
-                            fontFamily = MontserratFamily,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 11.sp,
-                            color = Color.White.copy(alpha = 0.55f)
-                        )
-                    )
                 }
             }
 
