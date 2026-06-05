@@ -54,6 +54,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import com.gncaitech.flowlink.ui.theme.SnowGray
 import androidx.compose.foundation.border
 import androidx.compose.runtime.rememberCoroutineScope
+import com.gncaitech.flowlink.network.AuthTokenHolder
 import com.gncaitech.flowlink.network.LoginRequest
 import com.gncaitech.flowlink.network.LoginResponse
 import com.gncaitech.flowlink.network.authApi
@@ -177,6 +178,7 @@ fun LoginScreen(
                             try {
                                 val res = authApi.login(LoginRequest(userId, password))
                                 if (res.isSuccessful) {
+                                    AuthTokenHolder.token = res.body()?.token
                                     if(autoLogin) {
                                         val prefs = context.getSharedPreferences("fl_prefs",android.content.Context.MODE_PRIVATE)
                                         prefs.edit()

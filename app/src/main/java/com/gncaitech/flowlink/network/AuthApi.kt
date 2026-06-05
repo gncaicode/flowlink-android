@@ -7,7 +7,7 @@ import retrofit2.http.Body
 import retrofit2.http.POST
 
 data class LoginRequest(val email: String, val password: String)
-data class LoginResponse(val email: String, val institutionId: String?)
+data class LoginResponse(val email: String, val institutionId: String?, val token: String?)
 data class ErrorResponse(val error: String)
 
 interface AuthApi {

@@ -57,7 +57,7 @@ fun PatientDetailScreen(
     LaunchedEffect(patient.id) {
         try {
             val res = patientApi.getSessions(patient.id)
-            if (res.isSuccessful) sessions = res.body() ?: emptyList()
+            if (res.isSuccessful) sessions = res.body()?.data ?: emptyList()
         } catch (_: Exception) {
         } finally {
             isLoading = false

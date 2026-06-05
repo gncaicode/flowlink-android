@@ -7,6 +7,7 @@ import androidx.compose.runtime.remember
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.gncaitech.flowlink.network.AuthTokenHolder
 import com.gncaitech.flowlink.network.LoginRequest
 import com.gncaitech.flowlink.network.PatientDto
 import com.gncaitech.flowlink.network.authApi
@@ -55,6 +56,7 @@ fun AppNavigation() {
                     try{
                         val res = authApi.login(LoginRequest(savedEmail,savedPassword))
                         if(res.isSuccessful) {
+                            AuthTokenHolder.token = res.body()?.token
                             navController.navigate("subject_select") {
                                 popUpTo("splash") { inclusive = true }
                             }
