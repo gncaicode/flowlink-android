@@ -123,6 +123,7 @@ fun MeasureScreen(
     val landmarks3DState = remember { mutableStateOf<List<Triple<Float,Float,Float>>>(emptyList()) }
     var showExitDialog by remember { mutableStateOf(false) }
     var isResting by remember { mutableStateOf(false) }
+    var setCompleted by remember { mutableStateOf(false) }
     var restRemaining by remember { mutableStateOf(0) }
 
     val executor = remember { Executors.newSingleThreadExecutor() }
@@ -197,6 +198,44 @@ fun MeasureScreen(
                 delay(1000L)
                 seconds = minOf(setSeconds, seconds + 1)
             }
+            //시간 초과 -> 자동 세트 완료
+            if (setCompleted) return@LaunchedEffect
+            setCompleted = true
+            val feedback = when {
+                reps >= target      -> "perfect"
+                reps >= target / 2  -> "minor"
+                else                -> "major"
+            }
+            val today = java.time.LocalDate.now().toString()
+            val lm = landmarks3DState.value
+            val landmarksJson = if (lm.isEmpty()) "" else lm.joinToString(",","[","]"){
+                "[${it.first},${it.second},${it.third}]"
+            }
+            val req = SessionRequest(
+                id = "${patient?.id ?:
+                "unknown"}-set${currentSet}-${System.currentTimeMillis()}",
+                patientId = patient?.id ?: "unknown",
+                date = today,
+                kind = config.kind,
+                repsCompleted = reps,
+                repsTarget = target,
+                postureScore = 0,
+                durationSec = seconds,
+                feedback = feedback,
+                landmarks = landmarksJson
+            )
+            scope.launch {
+                try { patientApi.saveSession(req) } catch (_: Exception) {}
+            }
+            val accReps = totalRepsAcc + reps
+            val accSecs = totalSecsAcc + seconds
+            if (currentSet < totalSets) {
+                totalRepsAcc = accReps
+                totalSecsAcc = accSecs
+                isResting = true
+            } else {
+                onFinish(accReps, accSecs)
+            }
         }
     }
 
@@ -212,6 +251,7 @@ fun MeasureScreen(
             currentSet++
             reps = 0
             seconds = 0
+            setCompleted = false
         }
     }
 
@@ -294,6 +334,7 @@ fun MeasureScreen(
                                 currentSet++
                                 reps = 0
                                 seconds = 0
+                                setCompleted = false
                             }
                             .padding(horizontal = 32.dp, vertical = 14.dp),
                         contentAlignment = Alignment.Center
@@ -813,6 +854,8 @@ fun MeasureScreen(
                         .clip(RoundedCornerShape(28.dp))
                         .background(if (repDone) MedTeal else ArtRed)
                         .clickable {
+                            if (setCompleted) return@clickable
+                            setCompleted = true
 
                             val today = java.time.LocalDate
                                 .now()

@@ -276,11 +276,12 @@ fun SubjectRegisterScreen(
                 )
             }
             FilledButton(
-                text = meta.cta,
+                text = if (currentStep == 2 && isSubmitting) "등록 중..." else meta.cta,
                 leadingIcon = if (currentStep == 2) Icons.Default.Check
                               else Icons.AutoMirrored.Filled.ArrowForward,
                 modifier = Modifier.weight(1f),
                 height = 52.dp,
+                enabled = !isSubmitting,
                 onClick = {
                     if (currentStep == 0) {
                         patientIdError = step1PatientId.isBlank()

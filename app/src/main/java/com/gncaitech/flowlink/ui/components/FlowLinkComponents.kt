@@ -150,9 +150,11 @@ fun FilledButton(
     leadingIcon: ImageVector? = null,
     color: Color = ArtRed,
     height: androidx.compose.ui.unit.Dp = 48.dp,
+    enabled: Boolean = true,
 ) {
     Button(
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier.height(height),
         shape = RoundedCornerShape(100.dp),
         colors = ButtonDefaults.buttonColors(containerColor = color),
