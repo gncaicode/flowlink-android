@@ -178,6 +178,9 @@ fun PatientDetailScreen(
                     InfoItem("나이", "${patient.age ?: "-"}세")
                     InfoItem("성별", patient.gender ?: "-")
                     InfoItem("프로그램", patient.program ?: "-")
+                    if (!patient.scheduled.isNullOrBlank()) {
+                        InfoItem("다음 예약", patient.scheduled.take(10))
+                    }
                 }
             }
         }
