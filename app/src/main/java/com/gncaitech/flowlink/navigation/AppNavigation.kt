@@ -176,6 +176,7 @@ fun AppNavigation() {
                 setsCompleted   = exerciseConfig.totalSets,
                 totalSets       = exerciseConfig.totalSets,
                 totalSeconds    = resultTotalSeconds,
+                kind            = exerciseConfig.kind,
                 onBack = {
                     navController.navigate("subject_select") {
                         popUpTo("result") { inclusive = true }

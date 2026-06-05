@@ -41,6 +41,7 @@ fun ResultScreen(
     setsCompleted: Int = 3,
     totalSets: Int = 3,
     totalSeconds: Int = 0,
+    kind:String = "grip",
     onBack: () -> Unit = {},
 ) {
     val mmss = { s: Int -> "%02d:%02d".format(s / 60, s % 60)}
@@ -164,6 +165,13 @@ fun ResultScreen(
                     .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                val kindLabel = when (kind) {
+                    "dumbbell"          -> "덤벨컬"
+                    "wrist_rotation"    -> "손목회전"
+                    else                -> "공쥐기"
+                }
+                ResultStatRow(label = "운동 종류", value = kindLabel, unit = "")
+                ResultDivider()
                 ResultStatRow(label = "총 횟수",    value = "$totalReps", unit = "회")
                 ResultDivider()
                 ResultStatRow(label = "목표 횟수",  value = "${repsTarget * setsCompleted}", unit = "회")
