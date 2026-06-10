@@ -143,7 +143,7 @@ fun MeasureScreen(
                 if (isClosed) {
                     wasOpenState.value = false
                 } else {
-                    if (!wasOpenState.value) {
+                    if (!wasOpenState.value && !isWaitingToStart && !isCountingDown) {
                         reps++
                         //사이클 소요 시간 계산
                         val now = System.currentTimeMillis()
@@ -163,18 +163,22 @@ fun MeasureScreen(
                 landmarks3DState.value = pts
             },
             onCurlRep = {
-                reps++
-                val now = System.currentTimeMillis()
-                val last = lastGripOpenTimeState.value
-                if (last > 0) repSpeedSec = (now - last) / 1000f
-                lastGripOpenTimeState.value = now
+                if (!isWaitingToStart && !isCountingDown) {
+                    reps++
+                    val now = System.currentTimeMillis()
+                    val last = lastGripOpenTimeState.value
+                    if (last > 0) repSpeedSec = (now - last) / 1000f
+                    lastGripOpenTimeState.value = now
+                }
             },
             onWristRep = {
-                reps++
-                val now = System.currentTimeMillis()
-                val last = lastGripOpenTimeState.value
-                if (last > 0) repSpeedSec = (now - last) / 1000f
-                lastGripOpenTimeState.value = now
+                if (!isWaitingToStart && !isCountingDown) {
+                    reps++
+                    val now = System.currentTimeMillis()
+                    val last = lastGripOpenTimeState.value
+                    if (last > 0) repSpeedSec = (now - last) / 1000f
+                    lastGripOpenTimeState.value = now
+                }
             },
             exerciseKind = config.kind,
         )
@@ -184,11 +188,13 @@ fun MeasureScreen(
         PoseLandmarkDetector(
             context = context,
             onCurlRep = {
-                reps++
-                val now = System.currentTimeMillis()
-                val last = lastGripOpenTimeState.value
-                if (last > 0) repSpeedSec = (now - last) / 1000f
-                lastGripOpenTimeState.value = now
+                if (!isWaitingToStart && !isCountingDown) {
+                    reps++
+                    val now = System.currentTimeMillis()
+                    val last = lastGripOpenTimeState.value
+                    if (last > 0) repSpeedSec = (now - last) / 1000f
+                    lastGripOpenTimeState.value = now
+                }
             },
             onLandmarks = { pts ->
                 landmarksState.value = pts  // 오버레이 재활용
@@ -275,7 +281,14 @@ fun MeasureScreen(
             reps = 0
             seconds = 0
             setCompleted = false
-            isWaitingToStart = true
+            isCountingDown = true  // 동기적으로 설정 (isResting=false와 함께 배치)
+            scope.launch {         // 별도 코루틴으로 실행 (LaunchedEffect 취소에 영향 없음)
+                for (i in 3 downTo 1) {
+                    countdownValue = i
+                    delay(1000L)
+                }
+                isCountingDown = false
+            }
         }
     }
 
@@ -863,8 +876,8 @@ fun MeasureScreen(
                             if (isWaitingToStart) {
                                 // 시작하기 — 카운트다운 후 타이머 시작
                                 isWaitingToStart = false
+                                isCountingDown = true  // 동기적으로 설정해 race condition 방지
                                 scope.launch {
-                                    isCountingDown = true
                                     for (i in 3 downTo 1) {
                                         countdownValue = i
                                         delay(1000L)
@@ -991,8 +1004,8 @@ fun MeasureScreen(
                                 reps = 0
                                 seconds = 0
                                 setCompleted = false
+                                isCountingDown = true  // 동기적으로 설정해 race condition 방지
                                 scope.launch {
-                                    isCountingDown = true
                                     for (i in 3 downTo 1) {
                                         countdownValue = i
                                         delay(1000L)
