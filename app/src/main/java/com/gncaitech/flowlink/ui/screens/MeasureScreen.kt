@@ -127,7 +127,8 @@ fun MeasureScreen(
     var isResting by remember { mutableStateOf(false) }
     var setCompleted by remember { mutableStateOf(false) }
     var restRemaining by remember { mutableStateOf(0) }
-    var isCountingDown by remember { mutableStateOf(true) }
+    var isWaitingToStart by remember { mutableStateOf(true) }
+    var isCountingDown by remember { mutableStateOf(false) }
     var countdownValue by remember { mutableIntStateOf(3) }
 
     val executor = remember { Executors.newSingleThreadExecutor() }
@@ -213,18 +214,9 @@ fun MeasureScreen(
     val patientPid = patient?.pid ?: "-"
     val initial = patientName.take(1)
 
-    // 최초 진입 카운트다운
-    LaunchedEffect(Unit) {
-        for (i in 3 downTo 1) {
-            countdownValue = i
-            delay(1000L)
-        }
-        isCountingDown = false
-    }
-
-    // Running timer — cancelled automatically when paused, isResting, or isCountingDown changes
-    LaunchedEffect(paused, isResting, isCountingDown) {
-        if (!paused && !isResting && !isCountingDown) {
+    // Running timer — cancelled automatically when paused, isResting, isCountingDown, or isWaitingToStart changes
+    LaunchedEffect(paused, isResting, isCountingDown, isWaitingToStart) {
+        if (!paused && !isResting && !isCountingDown && !isWaitingToStart) {
             while (seconds < setSeconds) {
                 delay(1000L)
                 seconds = minOf(setSeconds, seconds + 1)
@@ -283,13 +275,7 @@ fun MeasureScreen(
             reps = 0
             seconds = 0
             setCompleted = false
-            // 다음 세트 카운트다운
-            isCountingDown = true
-            for (i in 3 downTo 1) {
-                countdownValue = i
-                delay(1000L)
-            }
-            isCountingDown = false
+            isWaitingToStart = true
         }
     }
 
@@ -317,130 +303,6 @@ fun MeasureScreen(
                     }
                 }
             )
-        }
-
-        //휴식 오버레이
-        if (isResting) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color(0xCC0A1422)),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ){
-                    Text(
-                        "휴식",
-                        style = TextStyle(
-                            fontFamily = MontserratFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            letterSpacing = (0.14f * 14f).sp,
-                            color = Color.White.copy(alpha = 0.60f)
-                        )
-                    )
-                    Text(
-                        restRemaining.toString(),
-                        style = TextStyle(
-                            fontFamily = MontserratFamily,
-                            fontWeight = FontWeight.Black,
-                            fontSize = 96.sp,
-                            color = Color.White,
-                            lineHeight = 96.sp
-                        )
-                    )
-                    Text(
-                        "다음 세트 $currentSet / $totalSets",
-                        style = TextStyle(
-                            fontSize = 14.sp,
-                            color = Color.White.copy(alpha = 0.55f)
-                        )
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    //바로 시작 버튼
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(28.dp))
-                            .background(MedTeal)
-                            .clickable(
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() }
-                            ){
-                                isResting = false
-                                currentSet++
-                                reps = 0
-                                seconds = 0
-                                setCompleted = false
-                                scope.launch {
-                                    isCountingDown = true
-                                    for (i in 3 downTo 1) {
-                                        countdownValue = i
-                                        delay(1000L)
-                                    }
-                                    isCountingDown = false
-                                }
-                            }
-                            .padding(horizontal = 32.dp, vertical = 14.dp),
-                        contentAlignment = Alignment.Center
-                    ){
-                        Text(
-                            "바로 시작",
-                            style = TextStyle(
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 15.sp,
-                                color = Color.White
-                            )
-                        )
-                    }
-                }
-            }
-        }
-
-        // z0 · Camera-style radial backdrop
-
-        // 카운트다운 오버레이
-        if (isCountingDown) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color(0xCC0A1422)),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Text(
-                        "세트 $currentSet / $totalSets 시작",
-                        style = TextStyle(
-                            fontFamily = MontserratFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            letterSpacing = (0.14f * 14f).sp,
-                            color = Color.White.copy(alpha = 0.60f)
-                        )
-                    )
-                    Text(
-                        countdownValue.toString(),
-                        style = TextStyle(
-                            fontFamily = MontserratFamily,
-                            fontWeight = FontWeight.Black,
-                            fontSize = 96.sp,
-                            color = ArtRed,
-                            lineHeight = 96.sp
-                        )
-                    )
-                    Text(
-                        "준비하세요",
-                        style = TextStyle(
-                            fontSize = 14.sp,
-                            color = Color.White.copy(alpha = 0.55f)
-                        )
-                    )
-                }
-            }
         }
 
         // z0 · 카메라 프리뷰
@@ -1058,6 +920,193 @@ fun MeasureScreen(
                             modifier = Modifier.size(20.dp)
                         )
                     }
+                }
+            }
+        }
+
+        // ── 휴식 오버레이 (모든 UI 위에 표시) ────────────────────────────
+        if (isResting) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xCC0A1422)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        "휴식",
+                        style = TextStyle(
+                            fontFamily = MontserratFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            letterSpacing = (0.14f * 14f).sp,
+                            color = Color.White.copy(alpha = 0.60f)
+                        )
+                    )
+                    Text(
+                        restRemaining.toString(),
+                        style = TextStyle(
+                            fontFamily = MontserratFamily,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 96.sp,
+                            color = Color.White,
+                            lineHeight = 96.sp
+                        )
+                    )
+                    Text(
+                        "다음 세트 $currentSet / $totalSets",
+                        style = TextStyle(
+                            fontSize = 14.sp,
+                            color = Color.White.copy(alpha = 0.55f)
+                        )
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(28.dp))
+                            .background(MedTeal)
+                            .clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            ) {
+                                isResting = false
+                                currentSet++
+                                reps = 0
+                                seconds = 0
+                                setCompleted = false
+                                scope.launch {
+                                    isCountingDown = true
+                                    for (i in 3 downTo 1) {
+                                        countdownValue = i
+                                        delay(1000L)
+                                    }
+                                    isCountingDown = false
+                                }
+                            }
+                            .padding(horizontal = 32.dp, vertical = 14.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "바로 시작",
+                            style = TextStyle(
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 15.sp,
+                                color = Color.White
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
+        // ── 시작 대기 오버레이 ────────────────────────────────────────────
+        if (isWaitingToStart) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xCC0A1422)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        "세트 $currentSet / $totalSets",
+                        style = TextStyle(
+                            fontFamily = MontserratFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            letterSpacing = (0.14f * 14f).sp,
+                            color = Color.White.copy(alpha = 0.60f)
+                        )
+                    )
+                    Text(
+                        "준비되셨나요?",
+                        style = TextStyle(
+                            fontFamily = MontserratFamily,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 28.sp,
+                            color = Color.White
+                        )
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(28.dp))
+                            .background(ArtRed)
+                            .clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            ) {
+                                isWaitingToStart = false
+                                scope.launch {
+                                    isCountingDown = true
+                                    for (i in 3 downTo 1) {
+                                        countdownValue = i
+                                        delay(1000L)
+                                    }
+                                    isCountingDown = false
+                                }
+                            }
+                            .padding(horizontal = 48.dp, vertical = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "시작하기",
+                            style = TextStyle(
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 18.sp,
+                                color = Color.White
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
+        // ── 카운트다운 오버레이 ───────────────────────────────────────────
+        if (isCountingDown) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xCC0A1422)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        "세트 $currentSet / $totalSets 시작",
+                        style = TextStyle(
+                            fontFamily = MontserratFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            letterSpacing = (0.14f * 14f).sp,
+                            color = Color.White.copy(alpha = 0.60f)
+                        )
+                    )
+                    Text(
+                        countdownValue.toString(),
+                        style = TextStyle(
+                            fontFamily = MontserratFamily,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 96.sp,
+                            color = ArtRed,
+                            lineHeight = 96.sp
+                        )
+                    )
+                    Text(
+                        "준비하세요",
+                        style = TextStyle(
+                            fontSize = 14.sp,
+                            color = Color.White.copy(alpha = 0.55f)
+                        )
+                    )
                 }
             }
         }
