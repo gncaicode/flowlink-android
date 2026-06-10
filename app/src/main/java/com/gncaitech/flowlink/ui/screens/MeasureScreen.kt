@@ -80,7 +80,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import com.gncaitech.flowlink.network.patientApi
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.focus.focusModifier
 import com.gncaitech.flowlink.network.SessionRequest
 import kotlinx.coroutines.launch
 

@@ -5,6 +5,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -62,7 +64,9 @@ fun ExerciseSetupScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 20.dp),
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 80.dp)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Spacer(Modifier.height(8.dp))
@@ -323,32 +327,32 @@ fun ExerciseSetupScreen(
                 }
             }
 
-            Spacer(Modifier.weight(1f))
-
-            // 측정 시작 버튼
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .clip(RoundedCornerShape(28.dp))
-                    .background(ArtRed)
-                    .clickable(
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() }
-                    ) { onStart() },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    "측정 시작",
-                    style = TextStyle(
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 16.sp,
-                        color = Color.White
-                    )
-                )
-            }
-
             Spacer(Modifier.height(8.dp))
+        }
+
+        // 측정 시작 버튼 — 하단 고정
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 12.dp)
+                .height(56.dp)
+                .clip(RoundedCornerShape(28.dp))
+                .background(ArtRed)
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) { onStart() },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                "측정 시작",
+                style = TextStyle(
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp,
+                    color = Color.White
+                )
+            )
         }
     }
 }
