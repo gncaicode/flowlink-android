@@ -82,6 +82,7 @@ import com.gncaitech.flowlink.network.patientApi
 import androidx.compose.runtime.rememberCoroutineScope
 import com.gncaitech.flowlink.network.SessionRequest
 import kotlinx.coroutines.launch
+import com.gncaitech.flowlink.ml.PoseLandmarkDetector
 
 // Glass HUD tokens
 private val GlassFill   = Color(0x66000000)  // rgba(0,0,0,0.40)
@@ -175,11 +176,29 @@ fun MeasureScreen(
             exerciseKind = config.kind,
         )
     }
+
+    val poseDetector = remember(context) {
+        PoseLandmarkDetector(
+            context = context,
+            onCurlRep = {
+                reps++
+                val now = System.currentTimeMillis()
+                val last = lastGripOpenTimeState.value
+                if (last > 0) repSpeedSec = (now - last) / 1000f
+                lastGripOpenTimeState.value = now
+            },
+            onLandmarks = { pts ->
+                landmarksState.value = pts  // 오버레이 재활용
+            }
+        )
+    }
+
     val scope = rememberCoroutineScope()
 
     DisposableEffect(Unit) {
         onDispose {
             detector.close()
+            poseDetector.close()
             executor.shutdown()
         }
     }
@@ -373,7 +392,15 @@ fun MeasureScreen(
                 val imageAnalysis = ImageAnalysis.Builder()
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                     .build()
-                    .also { it.setAnalyzer(executor) { imageProxy -> detector.detect(imageProxy) } }
+                    .also {
+                        it.setAnalyzer(executor) { imageProxy ->
+                            if (config.kind == "dumbbell") {
+                                poseDetector.detect(imageProxy)
+                            } else {
+                                detector.detect(imageProxy)
+                            }
+                        }
+                    }
 
                 cameraProvider.unbindAll()
                 cameraProvider.bindToLifecycle(lifecycleOwner, cameraSelector, preview, imageAnalysis)
