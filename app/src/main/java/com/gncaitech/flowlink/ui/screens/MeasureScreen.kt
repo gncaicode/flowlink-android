@@ -1223,18 +1223,18 @@ private fun AlignmentCirclesOverlay(modifier: Modifier = Modifier) {
 
         // Dashed outer ring
         drawCircle(
-            color = Color.White.copy(alpha = 0.12f),
+            color = Color.White.copy(alpha = 0.25f),
             radius = outerR,
             center = Offset(cx, cy),
-            style = Stroke(width = 1f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f)))
+            style = Stroke(width = 3f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f)))
         )
 
         // Solid inner teal ring
         drawCircle(
-            color = MedTeal.copy(alpha = 0.35f),
+            color = MedTeal.copy(alpha = 0.60f),
             radius = innerR,
             center = Offset(cx, cy),
-            style = Stroke(width = 1.5f)
+            style = Stroke(width = 3.5f)
         )
 
         // 4 corner brackets
@@ -1247,11 +1247,11 @@ private fun AlignmentCirclesOverlay(modifier: Modifier = Modifier) {
             Triple(20f * sx, 640f * sy,  Pair( 1f, -1f)),
             Triple(392f * sx, 640f * sy, Pair(-1f, -1f)),
         )
-        val bracketColor = MedTeal.copy(alpha = 0.70f)
+        val bracketColor = MedTeal.copy(alpha = 0.90f)
         for ((bx, by, dir) in brackets) {
             val pt = Offset(bx, by)
-            drawLine(bracketColor, pt, Offset(bx + legLen * dir.first,  by), strokeWidth = 2f, cap = StrokeCap.Round)
-            drawLine(bracketColor, pt, Offset(bx, by + legLen * dir.second), strokeWidth = 2f, cap = StrokeCap.Round)
+            drawLine(bracketColor, pt, Offset(bx + legLen * dir.first,  by), strokeWidth = 5f, cap = StrokeCap.Round)
+            drawLine(bracketColor, pt, Offset(bx, by + legLen * dir.second), strokeWidth = 5f, cap = StrokeCap.Round)
         }
     }
 }
