@@ -37,11 +37,11 @@ private val SetupFgDim     = Color.White.copy(alpha = 0.60f)
 private val SetupFgLabel   = Color.White.copy(alpha = 0.55f)
 
 data class ExerciseConfig(
-    val totalSets: Int  = 3,
-    val targetReps: Int = 15,
-    val setSeconds: Int = 120,
+    val totalSets: Int  = 1,
+    val targetReps: Int = 20,
+    val setSeconds: Int = 30,
     val kind: String    = "grip",
-    val restSeconds: Int = 30
+    val restSeconds: Int = 10
 )
 
 @Composable
@@ -52,7 +52,7 @@ fun ExerciseSetupScreen(
     onBack: () -> Unit = {},
     onStart: () -> Unit = {},
 ) {
-    val durationOptions = listOf(60 to "1분", 90 to "1분 30초", 120 to "2분", 180 to "3분")
+    val durationOptions = listOf(30 to "30초", 60 to "1분", 90 to "1분 30초", 120 to "2분")
 
     Box(
         modifier = Modifier
@@ -253,7 +253,7 @@ fun ExerciseSetupScreen(
             }
 
             SetupCard(title = "세트 간 휴식 시간") {
-                val restOptions = listOf(15 to "15초", 30 to "30초", 45 to "45초", 60 to "1분")
+                val restOptions = listOf(10 to "10초", 15 to "15초", 20 to "20초", 30 to "30초")
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
