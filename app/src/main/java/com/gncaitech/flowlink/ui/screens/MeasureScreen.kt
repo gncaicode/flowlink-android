@@ -479,12 +479,17 @@ fun MeasureScreen(
                 }
             }
 
-            // REC badge — translucent red
+            // 운동 종류 배지
+            val kindLabel = when (config.kind) {
+                "dumbbell"       -> "덤벨컬"
+                "wrist_rotation" -> "손목회전"
+                else             -> "공쥐기"
+            }
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(12.dp))
-                    .background(ArtRed.copy(alpha = 0.18f))
-                    .border(1.dp, ArtRed.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
+                    .background(MedTeal.copy(alpha = 0.18f))
+                    .border(1.dp, MedTeal.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
                     .padding(horizontal = 14.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -493,10 +498,10 @@ fun MeasureScreen(
                     modifier = Modifier
                         .size(6.dp)
                         .clip(CircleShape)
-                        .background(ArtRed)
+                        .background(MedTeal)
                 )
                 Text(
-                    "REC",
+                    kindLabel,
                     style = TextStyle(
                         fontFamily = MontserratFamily,
                         fontWeight = FontWeight.Bold,
@@ -841,32 +846,47 @@ fun MeasureScreen(
                     )
                 }
 
-                // 세트 완료하기 (Red → Teal when target hit)
+                // 시작하기 / 세트 완료하기 버튼
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .height(56.dp)
                         .clip(RoundedCornerShape(28.dp))
-                        .background(if (repDone) MedTeal else ArtRed)
+                        .background(
+                            when {
+                                isWaitingToStart -> MedTeal
+                                repDone          -> MedTeal
+                                else             -> ArtRed
+                            }
+                        )
                         .clickable {
+                            if (isWaitingToStart) {
+                                // 시작하기 — 카운트다운 후 타이머 시작
+                                isWaitingToStart = false
+                                scope.launch {
+                                    isCountingDown = true
+                                    for (i in 3 downTo 1) {
+                                        countdownValue = i
+                                        delay(1000L)
+                                    }
+                                    isCountingDown = false
+                                }
+                                return@clickable
+                            }
                             if (setCompleted) return@clickable
                             setCompleted = true
 
-                            val today = java.time.LocalDate
-                                .now()
-                                .toString()
+                            val today = java.time.LocalDate.now().toString()
                             val feedback = when {
-                                reps >= target -> "perfect"
+                                reps >= target     -> "perfect"
                                 reps >= target / 2 -> "minor"
-                                else -> "major"
+                                else               -> "major"
                             }
-
                             val lm = landmarks3DState.value
                             val landmarksJson =
                                 if (lm.isEmpty()) "" else lm.joinToString(",", "[", "]") {
                                     "[${it.first},${it.second},${it.third}]"
                                 }
-
                             val req = SessionRequest(
                                 id = "${patient?.id ?: "unknown"}-set${currentSet}-${System.currentTimeMillis()}",
                                 patientId = patient?.id ?: "unknown",
@@ -879,15 +899,9 @@ fun MeasureScreen(
                                 feedback = feedback,
                                 landmarks = landmarksJson
                             )
-
-                            //백그라운드에서 저장 (실패해도 진행)
                             scope.launch {
-                                try {
-                                    patientApi.saveSession(req)
-                                } catch (_: Exception) {
-                                }
+                                try { patientApi.saveSession(req) } catch (_: Exception) {}
                             }
-
                             val accReps = totalRepsAcc + reps
                             val accSecs = totalSecsAcc + seconds
                             if (currentSet < totalSets) {
@@ -905,7 +919,7 @@ fun MeasureScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            "세트 완료하기",
+                            if (isWaitingToStart) "시작하기" else "세트 완료하기",
                             style = TextStyle(
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 16.sp,
@@ -994,72 +1008,6 @@ fun MeasureScreen(
                             style = TextStyle(
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 15.sp,
-                                color = Color.White
-                            )
-                        )
-                    }
-                }
-            }
-        }
-
-        // ── 시작 대기 오버레이 ────────────────────────────────────────────
-        if (isWaitingToStart) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color(0xCC0A1422)),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Text(
-                        "세트 $currentSet / $totalSets",
-                        style = TextStyle(
-                            fontFamily = MontserratFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            letterSpacing = (0.14f * 14f).sp,
-                            color = Color.White.copy(alpha = 0.60f)
-                        )
-                    )
-                    Text(
-                        "준비되셨나요?",
-                        style = TextStyle(
-                            fontFamily = MontserratFamily,
-                            fontWeight = FontWeight.Black,
-                            fontSize = 28.sp,
-                            color = Color.White
-                        )
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(28.dp))
-                            .background(ArtRed)
-                            .clickable(
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() }
-                            ) {
-                                isWaitingToStart = false
-                                scope.launch {
-                                    isCountingDown = true
-                                    for (i in 3 downTo 1) {
-                                        countdownValue = i
-                                        delay(1000L)
-                                    }
-                                    isCountingDown = false
-                                }
-                            }
-                            .padding(horizontal = 48.dp, vertical = 16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            "시작하기",
-                            style = TextStyle(
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 18.sp,
                                 color = Color.White
                             )
                         )
