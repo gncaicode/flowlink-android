@@ -676,88 +676,51 @@ fun MeasureScreen(
             }
         }
 
-        // ── AI tracking caption (top: 184, centered) ──────────────────
+        // ── 카운트 / 목표 표시 (top: 184, centered) ───────────────────
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 184.dp),
+                .padding(top = 180.dp),
             horizontalArrangement = Arrangement.Center
         ) {
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(999.dp))
-                    .background(MedTeal.copy(alpha = 0.18f))
-                    .border(1.dp, MedTeal.copy(alpha = 0.40f), RoundedCornerShape(999.dp))
-                    .padding(horizontal = 12.dp, vertical = 5.dp),
+                    .background(GlassFill)
+                    .border(1.dp, GlassHair, RoundedCornerShape(999.dp))
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(6.dp)
-                        .clip(CircleShape)
-                        .background(MedTeal)
-                )
                 Text(
-                    "AI POSE TRACKING · 공쥐기",
+                    reps.toString(),
                     style = TextStyle(
                         fontFamily = MontserratFamily,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 10.sp,
-                        letterSpacing = (0.18f * 10f).sp,
-                        color = MedTeal
+                        fontWeight = FontWeight.Black,
+                        fontSize = 30.sp,
+                        color = if (repDone) MedTeal else Color.White
+                    )
+                )
+                Text(
+                    "/",
+                    style = TextStyle(
+                        fontFamily = MontserratFamily,
+                        fontSize = 14.sp,
+                        color = FgFaint
+                    )
+                )
+                Text(
+                    "$target 회",
+                    style = TextStyle(
+                        fontFamily = MontserratFamily,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 14.sp,
+                        color = FgDim
                     )
                 )
             }
         }
 
-        // ── Rep counter (top: 222, centered, tap to increment) ────────
-        Column(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 222.dp)
-                .clickable(
-                    indication = null,
-                    interactionSource = remember { MutableInteractionSource() }
-                ) { if (reps < target) reps++ },
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                "탭 수",
-                style = TextStyle(
-                    fontFamily = MontserratFamily,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 10.sp,
-                    letterSpacing = (0.22f * 10f).sp,
-                    color = FgLabel
-                )
-            )
-            Spacer(Modifier.height(2.dp))
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(
-                    reps.toString().padStart(2, '0'),
-                    style = TextStyle(
-                        fontFamily = MontserratFamily,
-                        fontWeight = FontWeight.Black,
-                        fontSize = 108.sp,
-                        color = Color.White,
-                        lineHeight = 108.sp,
-                        letterSpacing = (-0.05f * 108f).sp,
-                    )
-                )
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    "/ $target",
-                    style = TextStyle(
-                        fontFamily = MontserratFamily,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 28.sp,
-                        color = FgFaint,
-                    ),
-                    modifier = Modifier.padding(bottom = 18.dp)
-                )
-            }
-        }
 
         // ── Right action stack (bottom: 200, right: 12) ───────────────
 //        Column(
