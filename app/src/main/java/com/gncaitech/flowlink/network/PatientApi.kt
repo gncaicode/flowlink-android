@@ -52,6 +52,8 @@ data class SessionRequest(
     val kind: String, // grip | dumbbell | wrist_rotation
     val repsCompleted: Int,
     val repsTarget: Int,
+    val totalSets: Int,
+    val setSeconds: Int,
     val postureScore: Int, // 0 (자세 피드백 미구현)
     val durationSec: Int,
     val feedback: String, //perfect minor major
