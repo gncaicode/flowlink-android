@@ -68,10 +68,12 @@ fun ResultScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
+        // 스크롤 가능한 콘텐츠 영역 (버튼 높이만큼 하단 여백 확보)
         Column (
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 20.dp),
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 88.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
@@ -180,30 +182,28 @@ fun ResultScreen(
                 ResultDivider()
                 ResultStatRow(label = "총 시간",    value = mmss(totalSeconds), unit = "")
             }
+        }
 
-            Spacer(Modifier.weight(1f))
-
-            // 돌아가기 버튼
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .clip(RoundedCornerShape(28.dp))
-                    .background(MedTeal)
-                    .then(Modifier.clickableNoRipple { onBack() }),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    "대상자 목록으로",
-                    style = TextStyle(
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 16.sp,
-                        color = Color.White
-                    )
+        // 돌아가기 버튼 — 하단 고정
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 16.dp)
+                .height(56.dp)
+                .clip(RoundedCornerShape(28.dp))
+                .background(MedTeal)
+                .clickableNoRipple { onBack() },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                "대상자 목록으로",
+                style = TextStyle(
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp,
+                    color = Color.White
                 )
-            }
-
-            Spacer(Modifier.height(24.dp))
+            )
         }
     }
 }
