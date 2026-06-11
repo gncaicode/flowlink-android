@@ -217,12 +217,14 @@ fun MeasureScreen(
             },
             onLandmarks = { pts ->
                 landmarksState.value = pts  // 오버레이 재활용
-                // 10 fps 샘플링 (덤벨컬 — PoseLandmarker는 z값 없으므로 0f)
+            },
+            onLandmarks3D = { pts ->
+                // 10 fps 샘플링 (덤벨컬 — PoseLandmarker z값 포함)
                 if (pts.isNotEmpty() && !isWaitingToStart && !isCountingDown && !paused && !isResting) {
                     val now = System.currentTimeMillis()
                     if (now - lastSampleTimeMs.get() >= 100L) {
                         lastSampleTimeMs.set(now)
-                        timeSeriesBuffer.add(Pair(now - setStartTimeMs.get(), pts.map { (x, y) -> Triple(x, y, 0f) }))
+                        timeSeriesBuffer.add(Pair(now - setStartTimeMs.get(), pts))
                     }
                 }
             },

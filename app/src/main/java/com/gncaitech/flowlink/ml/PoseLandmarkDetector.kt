@@ -26,6 +26,7 @@ class PoseLandmarkDetector(
     context: Context,
     private val onCurlRep: () -> Unit = {},
     private val onLandmarks: (List<Pair<Float,Float>>) -> Unit = {},
+    private val onLandmarks3D: (List<Triple<Float,Float,Float>>) -> Unit = {},
     private val onDebugInfo: ((CurlDebugInfo) -> Unit)? = null,
 ) {
     private var poseLandmarker: PoseLandmarker? = null
@@ -60,8 +61,10 @@ class PoseLandmarkDetector(
                 // 오른팔이 충분히 보일 때만 스켈레톤 전달
                 if (rightArmVisible) {
                     onLandmarks(pose.map { Pair(it.x(), it.y()) })
+                    onLandmarks3D(pose.map { Triple(it.x(), it.y(), it.z()) })
                 } else {
                     onLandmarks(emptyList())
+                    onLandmarks3D(emptyList())
                 }
 
                 // 오른팔 기준: 어깨(12), 팔꿈치(14), 손목(16)
