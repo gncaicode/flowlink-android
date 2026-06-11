@@ -373,12 +373,12 @@ fun MeasureScreen(
                 isFrontCamera = lensFacing == CameraSelector.LENS_FACING_FRONT
             )
             // 덤벨컬 디버그 오버레이
-            curlDebugInfo?.let { info ->
-                CurlDebugOverlay(
-                    modifier = Modifier.align(Alignment.TopStart).padding(top = 80.dp, start = 12.dp),
-                    info = info
-                )
-            }
+//            curlDebugInfo?.let { info ->
+//                CurlDebugOverlay(
+//                    modifier = Modifier.align(Alignment.TopStart).padding(top = 80.dp, start = 12.dp),
+//                    info = info
+//                )
+//            }
         } else {
             HandLandmarkCanvas(
                 modifier = Modifier.fillMaxSize(),

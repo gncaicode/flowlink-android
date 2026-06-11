@@ -4,7 +4,6 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.os.SystemClock
-import android.util.Log
 import androidx.camera.core.ImageProxy
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.tasks.core.BaseOptions
@@ -58,9 +57,6 @@ class PoseLandmarkDetector(
                 }
                 val rightArmVisible = visibilities.all { it > 0.3f }
 
-                Log.d("PoseCurl", "visibility — shoulder:%.2f elbow:%.2f wrist:%.2f | visible:$rightArmVisible"
-                    .format(visibilities[0], visibilities[1], visibilities[2]))
-
                 // 오른팔이 충분히 보일 때만 스켈레톤 전달
                 if (rightArmVisible) {
                     onLandmarks(pose.map { Pair(it.x(), it.y()) })
@@ -74,9 +70,6 @@ class PoseLandmarkDetector(
                 val wrist       = Pair(pose[16].x(), pose[16].y())
 
                 val angle = calcAngle(shoulder, elbow, wrist)
-
-                Log.d("PoseCurl", "angle:%.1f | curlIsUp:$curlIsUp | upThresh:$CURL_UP_ANGLE downThresh:$CURL_DOWN_ANGLE"
-                    .format(angle))
 
                 onDebugInfo?.invoke(
                     CurlDebugInfo(
@@ -130,10 +123,8 @@ class PoseLandmarkDetector(
     private fun detectCurl(angle: Float) {
         if (!curlIsUp && angle < CURL_UP_ANGLE) {
             curlIsUp = true
-            Log.d("PoseCurl", "★ UP detected (angle:%.1f < $CURL_UP_ANGLE)".format(angle))
         } else if (curlIsUp && angle > CURL_DOWN_ANGLE) {
             curlIsUp = false
-            Log.d("PoseCurl", "★ REP counted (angle:%.1f > $CURL_DOWN_ANGLE)".format(angle))
             onCurlRep()
         }
     }
