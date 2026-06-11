@@ -116,6 +116,7 @@ fun MeasureScreen(
     var lensFacing by remember { mutableIntStateOf(CameraSelector.LENS_FACING_BACK) }
     val landmarksState = remember { mutableStateOf<List<Pair<Float, Float>>>(emptyList()) }
     var landmarks by landmarksState
+    var curlDebugInfo by remember { mutableStateOf<com.gncaitech.flowlink.ml.CurlDebugInfo?>(null) }
     val wasOpenState = remember { mutableStateOf(true) }
     var wasOpen by wasOpenState
     val gripPercentState = remember { mutableStateOf(0) }
@@ -188,16 +189,21 @@ fun MeasureScreen(
         PoseLandmarkDetector(
             context = context,
             onCurlRep = {
-                if (!isWaitingToStart && !isCountingDown) {
-                    reps++
-                    val now = System.currentTimeMillis()
-                    val last = lastGripOpenTimeState.value
-                    if (last > 0) repSpeedSec = (now - last) / 1000f
-                    lastGripOpenTimeState.value = now
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    if (!isWaitingToStart && !isCountingDown) {
+                        reps++
+                        val now = System.currentTimeMillis()
+                        val last = lastGripOpenTimeState.value
+                        if (last > 0) repSpeedSec = (now - last) / 1000f
+                        lastGripOpenTimeState.value = now
+                    }
                 }
             },
             onLandmarks = { pts ->
                 landmarksState.value = pts  // 오버레이 재활용
+            },
+            onDebugInfo = { info ->
+                curlDebugInfo = info
             }
         )
     }
@@ -358,13 +364,28 @@ fun MeasureScreen(
             modifier = Modifier.fillMaxSize()
         )
 
-        // z1 · Alignment guide + AI hand skeleton
+        // z1 · Alignment guide + skeleton overlay
         AlignmentCirclesOverlay(modifier = Modifier.fillMaxSize())
-        HandLandmarkCanvas(
-            modifier = Modifier.fillMaxSize(),
-            landmarks = landmarks,
-            isFrontCamera = lensFacing == CameraSelector.LENS_FACING_FRONT
-        )
+        if (config.kind == "dumbbell") {
+            PoseLandmarkCanvas(
+                modifier = Modifier.fillMaxSize(),
+                landmarks = landmarks,
+                isFrontCamera = lensFacing == CameraSelector.LENS_FACING_FRONT
+            )
+            // 덤벨컬 디버그 오버레이
+            curlDebugInfo?.let { info ->
+                CurlDebugOverlay(
+                    modifier = Modifier.align(Alignment.TopStart).padding(top = 80.dp, start = 12.dp),
+                    info = info
+                )
+            }
+        } else {
+            HandLandmarkCanvas(
+                modifier = Modifier.fillMaxSize(),
+                landmarks = landmarks,
+                isFrontCamera = lensFacing == CameraSelector.LENS_FACING_FRONT
+            )
+        }
 
         // ── Top bar (top: 12) ──────────────────────────────────────────
         Row(
@@ -1213,6 +1234,54 @@ private fun HandLandmarkCanvas(
 }
 
 // ---------------------------------------------------------------------------
+// PoseLandmarkCanvas — upper-body skeleton for dumbbell curl
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun PoseLandmarkCanvas(
+    modifier: Modifier = Modifier,
+    landmarks: List<Pair<Float, Float>> = emptyList(),
+    isFrontCamera: Boolean = true
+) {
+    Canvas(modifier = modifier) {
+        if (landmarks.size >= 17) {
+            val pts = landmarks.map { (nx, ny) ->
+                val x = if (isFrontCamera) (1f - nx) * size.width else nx * size.width
+                Offset(x, ny * size.height)
+            }
+
+            // 상체 연결선: 어깨-어깨, 어깨-팔꿈치, 팔꿈치-손목
+            val connections = listOf(
+                11 to 12, // 양 어깨
+                11 to 13, 13 to 15, // 왼팔
+                12 to 14, 14 to 16, // 오른팔
+            )
+
+            for ((a, b) in connections) {
+                if (a < pts.size && b < pts.size) {
+                    // 오른팔(12,14,16)은 MedTeal 강조, 나머지는 흐리게
+                    val isRightArm = (a == 12 || a == 14) && (b == 14 || b == 16)
+                    val color = if (isRightArm) MedTeal.copy(alpha = 0.9f) else MedTeal.copy(alpha = 0.4f)
+                    val sw = if (isRightArm) size.width * 0.014f else size.width * 0.008f
+                    drawLine(color, pts[a], pts[b], strokeWidth = sw, cap = StrokeCap.Round)
+                }
+            }
+
+            // 관절 점
+            val keyPoints = listOf(11, 12, 13, 14, 15, 16)
+            for (i in keyPoints) {
+                if (i >= pts.size) continue
+                val isRightArm = i in listOf(12, 14, 16)
+                val color = if (isRightArm) MedTeal else MedTeal.copy(alpha = 0.5f)
+                val r = if (isRightArm) size.width * 0.016f else size.width * 0.010f
+                drawCircle(color.copy(alpha = 0.22f), radius = r * 1.6f, center = pts[i])
+                drawCircle(color, radius = r, center = pts[i])
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // AlignmentCirclesOverlay — dashed outer ring, teal inner ring, 4 brackets
 // ---------------------------------------------------------------------------
 
@@ -1257,5 +1326,41 @@ private fun AlignmentCirclesOverlay(modifier: Modifier = Modifier) {
             drawLine(bracketColor, pt, Offset(bx + legLen * dir.first,  by), strokeWidth = 5f, cap = StrokeCap.Round)
             drawLine(bracketColor, pt, Offset(bx, by + legLen * dir.second), strokeWidth = 5f, cap = StrokeCap.Round)
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// CurlDebugOverlay — 덤벨컬 디버그 정보 오버레이
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun CurlDebugOverlay(
+    modifier: Modifier = Modifier,
+    info: com.gncaitech.flowlink.ml.CurlDebugInfo,
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color.Black.copy(alpha = 0.65f))
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        val angleColor = when {
+            info.angle < 70f  -> Color(0xFF4CAF50)  // 초록 — 완전히 올림
+            info.angle > 150f -> Color(0xFF2196F3)  // 파랑 — 완전히 내림
+            else              -> Color.White
+        }
+        Text(
+            "각도: ${"%.1f".format(info.angle)}°  ${if (info.curlIsUp) "▲올림" else "▼내림"}",
+            style = TextStyle(fontFamily = MontserratFamily, fontSize = 12.sp, color = angleColor, fontWeight = FontWeight.Bold)
+        )
+        Text(
+            "어깨: ${"%.2f".format(info.visibilityShoulder)}  " +
+            "팔꿈치: ${"%.2f".format(info.visibilityElbow)}  " +
+            "손목: ${"%.2f".format(info.visibilityWrist)}",
+            style = TextStyle(fontFamily = MontserratFamily, fontSize = 10.sp,
+                color = if (info.visibilityShoulder > 0.3f && info.visibilityElbow > 0.3f && info.visibilityWrist > 0.3f)
+                    Color(0xFF4CAF50) else Color(0xFFFF5722))
+        )
     }
 }
