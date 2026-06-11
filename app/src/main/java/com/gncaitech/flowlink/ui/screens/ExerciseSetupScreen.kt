@@ -298,7 +298,11 @@ fun ExerciseSetupScreen(
             val totalSec = config.totalSets * config.setSeconds
             val m = totalSec / 60
             val s = totalSec % 60
-            val timeLabel = if (s == 0) "${m}분" else "${m}분 ${s}초"
+            val timeLabel = when {
+                m == 0       -> "${s}초"
+                s == 0       -> "${m}분"
+                else         -> "${m}분 ${s}초"
+            }
 
             Column(
                 modifier = Modifier
