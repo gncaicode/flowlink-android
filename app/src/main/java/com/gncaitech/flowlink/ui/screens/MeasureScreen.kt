@@ -83,6 +83,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import com.gncaitech.flowlink.network.SessionRequest
 import kotlinx.coroutines.launch
 import com.gncaitech.flowlink.ml.PoseLandmarkDetector
+import java.util.Collections
+import java.util.concurrent.atomic.AtomicLong
 
 // Glass HUD tokens
 private val GlassFill   = Color(0x66000000)  // rgba(0,0,0,0.40)
@@ -114,6 +116,12 @@ fun MeasureScreen(
     var totalSecsAcc    by remember { mutableStateOf(0) }
 
     var lensFacing by remember { mutableIntStateOf(CameraSelector.LENS_FACING_BACK) }
+
+    // 세트 시계열 rawdata 버퍼 — 10 fps 샘플링, 세트 시작 시 초기화
+    val timeSeriesBuffer = remember { Collections.synchronizedList(mutableListOf<Pair<Long, List<Triple<Float,Float,Float>>>>()) }
+    val setStartTimeMs   = remember { AtomicLong(0L) }
+    val lastSampleTimeMs = remember { AtomicLong(0L) }
+
     val landmarksState = remember { mutableStateOf<List<Pair<Float, Float>>>(emptyList()) }
     var landmarks by landmarksState
     var curlDebugInfo by remember { mutableStateOf<com.gncaitech.flowlink.ml.CurlDebugInfo?>(null) }
@@ -162,6 +170,14 @@ fun MeasureScreen(
             },
             onLandmarks3D = { pts ->
                 landmarks3DState.value = pts
+                // 10 fps 샘플링 (100 ms 간격)
+                if (!isWaitingToStart && !isCountingDown && !paused && !isResting) {
+                    val now = System.currentTimeMillis()
+                    if (now - lastSampleTimeMs.get() >= 100L) {
+                        lastSampleTimeMs.set(now)
+                        timeSeriesBuffer.add(Pair(now - setStartTimeMs.get(), pts))
+                    }
+                }
             },
             onCurlRep = {
                 if (!isWaitingToStart && !isCountingDown) {
@@ -201,6 +217,14 @@ fun MeasureScreen(
             },
             onLandmarks = { pts ->
                 landmarksState.value = pts  // 오버레이 재활용
+                // 10 fps 샘플링 (덤벨컬 — PoseLandmarker는 z값 없으므로 0f)
+                if (pts.isNotEmpty() && !isWaitingToStart && !isCountingDown && !paused && !isResting) {
+                    val now = System.currentTimeMillis()
+                    if (now - lastSampleTimeMs.get() >= 100L) {
+                        lastSampleTimeMs.set(now)
+                        timeSeriesBuffer.add(Pair(now - setStartTimeMs.get(), pts.map { (x, y) -> Triple(x, y, 0f) }))
+                    }
+                }
             },
             onDebugInfo = { info ->
                 curlDebugInfo = info
@@ -209,6 +233,15 @@ fun MeasureScreen(
     }
 
     val scope = rememberCoroutineScope()
+
+    // 카운트다운이 끝나는 순간(= 세트 시작)마다 버퍼 초기화
+    LaunchedEffect(isCountingDown) {
+        if (!isCountingDown && !isWaitingToStart) {
+            timeSeriesBuffer.clear()
+            setStartTimeMs.set(System.currentTimeMillis())
+            lastSampleTimeMs.set(0L)
+        }
+    }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -242,9 +275,9 @@ fun MeasureScreen(
                 else                -> "major"
             }
             val today = java.time.LocalDate.now().toString()
-            val lm = landmarks3DState.value
-            val landmarksJson = if (lm.isEmpty()) "" else lm.joinToString(",","[","]"){
-                "[${it.first},${it.second},${it.third}]"
+            val snapshot = synchronized(timeSeriesBuffer) { timeSeriesBuffer.toList() }
+            val landmarksJson = if (snapshot.isEmpty()) "" else snapshot.joinToString(",", "[", "]") { (t, pts) ->
+                "[$t,${pts.joinToString(",", "[", "]") { (x, y, z) -> "[$x,$y,$z]" }}]"
             }
             val req = SessionRequest(
                 id = "${patient?.id ?:
@@ -881,11 +914,10 @@ fun MeasureScreen(
                                 reps >= target / 2 -> "minor"
                                 else               -> "major"
                             }
-                            val lm = landmarks3DState.value
-                            val landmarksJson =
-                                if (lm.isEmpty()) "" else lm.joinToString(",", "[", "]") {
-                                    "[${it.first},${it.second},${it.third}]"
-                                }
+                            val snapshot = synchronized(timeSeriesBuffer) { timeSeriesBuffer.toList() }
+                            val landmarksJson = if (snapshot.isEmpty()) "" else snapshot.joinToString(",", "[", "]") { (t, pts) ->
+                                "[$t,${pts.joinToString(",", "[", "]") { (x, y, z) -> "[$x,$y,$z]" }}]"
+                            }
                             val req = SessionRequest(
                                 id = "${patient?.id ?: "unknown"}-set${currentSet}-${System.currentTimeMillis()}",
                                 patientId = patient?.id ?: "unknown",
