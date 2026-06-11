@@ -22,11 +22,21 @@ data class CurlDebugInfo(
     val visibilityWrist: Float,
 )
 
+data class PoseFrameData(
+    val landmarks3D: List<Triple<Float, Float, Float>>,
+    val elbowAngle: Float,
+    val curlIsUp: Boolean,
+    val visibilityShoulder: Float,
+    val visibilityElbow: Float,
+    val visibilityWrist: Float,
+)
+
 class PoseLandmarkDetector(
     context: Context,
     private val onCurlRep: () -> Unit = {},
     private val onLandmarks: (List<Pair<Float,Float>>) -> Unit = {},
     private val onLandmarks3D: (List<Triple<Float,Float,Float>>) -> Unit = {},
+    private val onPoseFrame: ((PoseFrameData) -> Unit)? = null,
     private val onDebugInfo: ((CurlDebugInfo) -> Unit)? = null,
 ) {
     private var poseLandmarker: PoseLandmarker? = null
@@ -73,6 +83,19 @@ class PoseLandmarkDetector(
                 val wrist       = Pair(pose[16].x(), pose[16].y())
 
                 val angle = calcAngle(shoulder, elbow, wrist)
+
+                val pts3D = pose.map { Triple(it.x(), it.y(), it.z()) }
+
+                onPoseFrame?.invoke(
+                    PoseFrameData(
+                        landmarks3D = pts3D,
+                        elbowAngle = angle,
+                        curlIsUp = curlIsUp,
+                        visibilityShoulder = visibilities[0],
+                        visibilityElbow = visibilities[1],
+                        visibilityWrist = visibilities[2],
+                    )
+                )
 
                 onDebugInfo?.invoke(
                     CurlDebugInfo(

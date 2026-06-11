@@ -118,7 +118,8 @@ fun MeasureScreen(
     var lensFacing by remember { mutableIntStateOf(CameraSelector.LENS_FACING_BACK) }
 
     // 세트 시계열 rawdata 버퍼 — 10 fps 샘플링, 세트 시작 시 초기화
-    val timeSeriesBuffer = remember { Collections.synchronizedList(mutableListOf<Pair<Long, List<Triple<Float,Float,Float>>>>()) }
+    // 각 항목은 pre-serialized JSON 문자열: [t_ms, [...landmarks...], ...computed_values]
+    val timeSeriesBuffer = remember { Collections.synchronizedList(mutableListOf<String>()) }
     val setStartTimeMs   = remember { AtomicLong(0L) }
     val lastSampleTimeMs = remember { AtomicLong(0L) }
 
@@ -170,12 +171,17 @@ fun MeasureScreen(
             },
             onLandmarks3D = { pts ->
                 landmarks3DState.value = pts
-                // 10 fps 샘플링 (100 ms 간격)
+            },
+            onHandFrame = { frame ->
+                // 10 fps 샘플링
                 if (!isWaitingToStart && !isCountingDown && !paused && !isResting) {
                     val now = System.currentTimeMillis()
                     if (now - lastSampleTimeMs.get() >= 100L) {
                         lastSampleTimeMs.set(now)
-                        timeSeriesBuffer.add(Pair(now - setStartTimeMs.get(), pts))
+                        val t = now - setStartTimeMs.get()
+                        val lm = frame.landmarks3D.joinToString(",", "[", "]") { (x, y, z) -> "[$x,$y,$z]" }
+                        // [t, landmarks, gripPercent, isClosed, wristXDiff]
+                        timeSeriesBuffer.add("[$t,$lm,${frame.gripPercent},${frame.isClosed},${frame.wristXDiff}]")
                     }
                 }
             },
@@ -218,13 +224,16 @@ fun MeasureScreen(
             onLandmarks = { pts ->
                 landmarksState.value = pts  // 오버레이 재활용
             },
-            onLandmarks3D = { pts ->
-                // 10 fps 샘플링 (덤벨컬 — PoseLandmarker z값 포함)
-                if (pts.isNotEmpty() && !isWaitingToStart && !isCountingDown && !paused && !isResting) {
+            onPoseFrame = { frame ->
+                // 10 fps 샘플링
+                if (frame.landmarks3D.isNotEmpty() && !isWaitingToStart && !isCountingDown && !paused && !isResting) {
                     val now = System.currentTimeMillis()
                     if (now - lastSampleTimeMs.get() >= 100L) {
                         lastSampleTimeMs.set(now)
-                        timeSeriesBuffer.add(Pair(now - setStartTimeMs.get(), pts))
+                        val t = now - setStartTimeMs.get()
+                        val lm = frame.landmarks3D.joinToString(",", "[", "]") { (x, y, z) -> "[$x,$y,$z]" }
+                        // [t, landmarks, elbowAngle, curlIsUp, visShoulder, visElbow, visWrist]
+                        timeSeriesBuffer.add("[$t,$lm,${frame.elbowAngle},${frame.curlIsUp},${frame.visibilityShoulder},${frame.visibilityElbow},${frame.visibilityWrist}]")
                     }
                 }
             },
@@ -278,9 +287,7 @@ fun MeasureScreen(
             }
             val today = java.time.LocalDate.now().toString()
             val snapshot = synchronized(timeSeriesBuffer) { timeSeriesBuffer.toList() }
-            val landmarksJson = if (snapshot.isEmpty()) "" else snapshot.joinToString(",", "[", "]") { (t, pts) ->
-                "[$t,${pts.joinToString(",", "[", "]") { (x, y, z) -> "[$x,$y,$z]" }}]"
-            }
+            val landmarksJson = if (snapshot.isEmpty()) "" else snapshot.joinToString(",", "[", "]")
             val req = SessionRequest(
                 id = "${patient?.id ?:
                 "unknown"}-set${currentSet}-${System.currentTimeMillis()}",

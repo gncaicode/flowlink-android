@@ -25,12 +25,20 @@ import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarkerResult
 //- wasOpen → hasGoneBack (뒤로 돌렸던 상태)
 
 
+data class HandFrameData(
+    val landmarks3D: List<Triple<Float, Float, Float>>,
+    val gripPercent: Int,
+    val isClosed: Boolean,
+    val wristXDiff: Float,   // pts[5].x - pts[17].x (손목회전 판단 기준)
+)
+
 class HandLandmarkDetector(
     context: Context,
     private val onResult: (List<List<Pair<Float,Float>>>) -> Unit,
     private val onGrip: (isClosed: Boolean) -> Unit = {},
     private val onGripPercent: (Int) -> Unit = {},
     private val onLandmarks3D: (List<Triple<Float,Float,Float>>) -> Unit = {},
+    private val onHandFrame: ((HandFrameData) -> Unit)? = null,
     private val onCurlRep: () -> Unit = {},
     private val onWristRep: () -> Unit = {},
     private val exerciseKind: String = "grip",
@@ -63,11 +71,17 @@ class HandLandmarkDetector(
                 // 그립 감지 - 첫 번째 손만 사용
                 val hand = result.landmarks().firstOrNull()
                 if (hand != null && hand.size == 21) {
-                    val pts = hand.map{ Pair(it.x(), it.y()) }
-                    val closed = isHandClosed(pts)
+                    val pts      = hand.map { Pair(it.x(), it.y()) }
+                    val pts3D    = hand.map { Triple(it.x(), it.y(), it.z()) }
+                    val closed   = isHandClosed(pts)
+                    val grip     = calcGripPercent(pts)
+                    val xDiff    = pts[5].first - pts[17].first
+
                     onGrip(closed)
-                    onGripPercent(calcGripPercent(pts))
-                    onLandmarks3D(hand.map { Triple(it.x(),it.y(),it.z()) })
+                    onGripPercent(grip)
+                    onLandmarks3D(pts3D)
+                    onHandFrame?.invoke(HandFrameData(pts3D, grip, closed, xDiff))
+
                     if (exerciseKind == "dumbbell") detectCurl(pts)
                     if (exerciseKind == "wrist_rotation") detectWristRotation(pts)
                 }
