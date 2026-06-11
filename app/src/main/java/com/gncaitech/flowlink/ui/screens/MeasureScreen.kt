@@ -119,9 +119,11 @@ fun MeasureScreen(
 
     // 세트 시계열 rawdata 버퍼 — 10 fps 샘플링, 세트 시작 시 초기화
     // 각 항목은 pre-serialized JSON 문자열: [t_ms, [...landmarks...], ...computed_values]
-    val timeSeriesBuffer = remember { Collections.synchronizedList(mutableListOf<String>()) }
-    val setStartTimeMs   = remember { AtomicLong(0L) }
-    val lastSampleTimeMs = remember { AtomicLong(0L) }
+    val timeSeriesBuffer   = remember { Collections.synchronizedList(mutableListOf<String>()) }
+    val setStartTimeMs     = remember { AtomicLong(0L) }
+    val lastSampleTimeMs   = remember { AtomicLong(0L) }
+    // rep 감지 시점 버퍼 — 세트 시작 기준 ms
+    val repTimestampsBuffer = remember { Collections.synchronizedList(mutableListOf<Long>()) }
 
     val landmarksState = remember { mutableStateOf<List<Pair<Float, Float>>>(emptyList()) }
     var landmarks by landmarksState
@@ -155,8 +157,8 @@ fun MeasureScreen(
                 } else {
                     if (!wasOpenState.value && !isWaitingToStart && !isCountingDown) {
                         reps++
-                        //사이클 소요 시간 계산
                         val now = System.currentTimeMillis()
+                        repTimestampsBuffer.add(now - setStartTimeMs.get())
                         val last = lastGripOpenTimeState.value
                         if (last > 0) {
                             repSpeedSec = (now - last) / 1000f
@@ -198,6 +200,7 @@ fun MeasureScreen(
                 if (!isWaitingToStart && !isCountingDown) {
                     reps++
                     val now = System.currentTimeMillis()
+                    repTimestampsBuffer.add(now - setStartTimeMs.get())
                     val last = lastGripOpenTimeState.value
                     if (last > 0) repSpeedSec = (now - last) / 1000f
                     lastGripOpenTimeState.value = now
@@ -215,6 +218,7 @@ fun MeasureScreen(
                     if (!isWaitingToStart && !isCountingDown) {
                         reps++
                         val now = System.currentTimeMillis()
+                        repTimestampsBuffer.add(now - setStartTimeMs.get())
                         val last = lastGripOpenTimeState.value
                         if (last > 0) repSpeedSec = (now - last) / 1000f
                         lastGripOpenTimeState.value = now
@@ -249,6 +253,7 @@ fun MeasureScreen(
     LaunchedEffect(isCountingDown) {
         if (!isCountingDown && !isWaitingToStart) {
             timeSeriesBuffer.clear()
+            repTimestampsBuffer.clear()
             setStartTimeMs.set(System.currentTimeMillis())
             lastSampleTimeMs.set(0L)
         }
@@ -288,6 +293,9 @@ fun MeasureScreen(
             val today = java.time.LocalDate.now().toString()
             val snapshot = synchronized(timeSeriesBuffer) { timeSeriesBuffer.toList() }
             val landmarksJson = if (snapshot.isEmpty()) "" else snapshot.joinToString(",", "[", "]")
+            val repTsJson = synchronized(repTimestampsBuffer) {
+                repTimestampsBuffer.joinToString(",", "[", "]")
+            }
             val req = SessionRequest(
                 id = "${patient?.id ?:
                 "unknown"}-set${currentSet}-${System.currentTimeMillis()}",
@@ -301,7 +309,8 @@ fun MeasureScreen(
                 postureScore = 0,
                 durationSec = seconds,
                 feedback = feedback,
-                landmarks = landmarksJson
+                landmarks = landmarksJson,
+                repTimestamps = repTsJson
             )
             scope.launch {
                 try { patientApi.saveSession(req) } catch (_: Exception) {}
@@ -925,6 +934,9 @@ fun MeasureScreen(
                             }
                             val snapshot = synchronized(timeSeriesBuffer) { timeSeriesBuffer.toList() }
                             val landmarksJson = if (snapshot.isEmpty()) "" else snapshot.joinToString(",", "[", "]")
+                            val repTsJson = synchronized(repTimestampsBuffer) {
+                                repTimestampsBuffer.joinToString(",", "[", "]")
+                            }
                             val req = SessionRequest(
                                 id = "${patient?.id ?: "unknown"}-set${currentSet}-${System.currentTimeMillis()}",
                                 patientId = patient?.id ?: "unknown",
@@ -937,7 +949,8 @@ fun MeasureScreen(
                                 postureScore = 0,
                                 durationSec = seconds,
                                 feedback = feedback,
-                                landmarks = landmarksJson
+                                landmarks = landmarksJson,
+                                repTimestamps = repTsJson
                             )
                             scope.launch {
                                 try { patientApi.saveSession(req) } catch (_: Exception) {}

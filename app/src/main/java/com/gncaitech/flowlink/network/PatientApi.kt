@@ -58,6 +58,7 @@ data class SessionRequest(
     val durationSec: Int,
     val feedback: String, //perfect minor major
     val landmarks: String = "",
+    val repTimestamps: String = "",  // "[t_ms, t_ms, ...]" 세트 시작 기준 rep 감지 시점
 )
 
 data class SessionDto(
