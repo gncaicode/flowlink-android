@@ -924,9 +924,7 @@ fun MeasureScreen(
                                 else               -> "major"
                             }
                             val snapshot = synchronized(timeSeriesBuffer) { timeSeriesBuffer.toList() }
-                            val landmarksJson = if (snapshot.isEmpty()) "" else snapshot.joinToString(",", "[", "]") { (t, pts) ->
-                                "[$t,${pts.joinToString(",", "[", "]") { (x, y, z) -> "[$x,$y,$z]" }}]"
-                            }
+                            val landmarksJson = if (snapshot.isEmpty()) "" else snapshot.joinToString(",", "[", "]")
                             val req = SessionRequest(
                                 id = "${patient?.id ?: "unknown"}-set${currentSet}-${System.currentTimeMillis()}",
                                 patientId = patient?.id ?: "unknown",
