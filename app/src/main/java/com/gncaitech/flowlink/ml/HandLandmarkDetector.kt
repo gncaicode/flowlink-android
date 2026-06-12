@@ -73,8 +73,8 @@ class HandLandmarkDetector(
                 if (hand != null && hand.size == 21) {
                     val pts      = hand.map { Pair(it.x(), it.y()) }
                     val pts3D    = hand.map { Triple(it.x(), it.y(), it.z()) }
-                    val closed   = isHandClosed(pts)
-                    val grip     = calcGripPercent(pts)
+                    val closed   = isHandClosed(pts3D)
+                    val grip     = calcGripPercent(pts3D)
                     val xDiff    = pts[5].first - pts[17].first
 
                     onGrip(closed)
@@ -114,25 +114,38 @@ class HandLandmarkDetector(
         handLandmarker = null
     }
 
-    // 손가락 4개(검지~새끼)의 끝(TIP)이 중간마디(PIP)보다 y값이 크면 구부러진 것
-    // (y 좌표: 위=0, 아래=1 이므로 TIP.y > PIP.y = 손끝이 아래 = 구부러짐)
-    private fun isHandClosed(pts: List<Pair<Float, Float>>): Boolean {
-        // 검지(8>6), 중지(12>10), 약지(16>14), 새끼(20>18)
-        val fingerTips = listOf(8, 12, 16, 20)
-        val fingerPips = listOf(6, 10, 14, 18)
-        var closedCount = 0
-        for (i in fingerTips.indices) {
-            if (pts[fingerTips[i]].second > pts[fingerPips[i]].second) closedCount++
-        }
-        return closedCount >= 3  // 4개 중 3개 이상 구부러지면 "쥔 상태"
+    // 손목(0)과 각 손가락 TIP/MCP 사이의 3D 거리 비교로 구부러짐 판단
+    // dist(손목, TIP) < dist(손목, MCP) → TIP이 손목에 더 가깝다 → 굽혀진 상태 (쥠)
+    // 손의 방향(기울기, 회전)에 무관하게 동작
+    private fun dist3D(a: Triple<Float,Float,Float>, b: Triple<Float,Float,Float>): Float {
+        val dx = a.first  - b.first
+        val dy = a.second - b.second
+        val dz = a.third  - b.third
+        return Math.sqrt((dx*dx + dy*dy + dz*dz).toDouble()).toFloat()
     }
 
-    private fun calcGripPercent(pts: List<Pair<Float, Float>>): Int {
+    private fun isHandClosed(pts3D: List<Triple<Float, Float, Float>>): Boolean {
+        val wrist      = pts3D[0]
+        val fingerTips = listOf(8, 12, 16, 20)   // 검지~새끼 TIP
+        val fingerMcps = listOf(5,  9, 13, 17)   // 검지~새끼 MCP
+        var closedCount = 0
+        for (i in fingerTips.indices) {
+            val distTip = dist3D(wrist, pts3D[fingerTips[i]])
+            val distMcp = dist3D(wrist, pts3D[fingerMcps[i]])
+            if (distTip < distMcp) closedCount++
+        }
+        return closedCount >= 3  // 4개 중 3개 이상 굽혀지면 "쥔 상태"
+    }
+
+    private fun calcGripPercent(pts3D: List<Triple<Float, Float, Float>>): Int {
+        val wrist      = pts3D[0]
         val fingerTips = listOf(8, 12, 16, 20)
-        val fingerPips = listOf(6, 10, 14, 18)
+        val fingerMcps = listOf(5,  9, 13, 17)
         var count = 0
         for (i in fingerTips.indices) {
-            if (pts[fingerTips[i]].second > pts[fingerPips[i]].second) count++
+            val distTip = dist3D(wrist, pts3D[fingerTips[i]])
+            val distMcp = dist3D(wrist, pts3D[fingerMcps[i]])
+            if (distTip < distMcp) count++
         }
         return (count * 100) / 4
     }
