@@ -50,10 +50,9 @@ class HandLandmarkDetector(
     private val WRIST_THRESHOLD  = 0.10f
     private var CURL_THRESHOLD   = 0.15f
 
-    // 히스테리시스 임계값 — 단일 1.0 기준 대신 두 개 사용
-    private val CLOSED_THRESHOLD = 0.85f  // ratio 이하 → 쥠
-    private val OPEN_THRESHOLD   = 1.15f  // ratio 이상 → 폄
-    private var handIsClosedState = false  // 이전 프레임 상태 유지용
+    // 히스테리시스 — 굽혀진 손가락 개수 기준
+    // 3개 이상 → 쥠 / 1개 이하 → 폄 / 2개 → 이전 상태 유지
+    private var handIsClosedState = false
 
     init {
         val baseOptions = BaseOptions.builder()
@@ -119,9 +118,8 @@ class HandLandmarkDetector(
         handLandmarker = null
     }
 
-    // 손목(0)과 각 손가락 TIP/MCP 사이의 3D 거리로 비율 계산
-    // ratio = mean(dist(손목,TIP) / dist(손목,MCP))
-    // ratio < 1.0 → TIP이 손목에 가깝다 → 굽혀진 상태
+    // 손목(0)과 각 손가락 TIP/MCP 사이의 3D 거리 비교
+    // dist(손목, TIP) < dist(손목, MCP) → TIP이 손목에 가깝다 → 굽혀진 상태
     private fun dist3D(a: Triple<Float,Float,Float>, b: Triple<Float,Float,Float>): Float {
         val dx = a.first  - b.first
         val dy = a.second - b.second
@@ -129,26 +127,22 @@ class HandLandmarkDetector(
         return Math.sqrt((dx*dx + dy*dy + dz*dz).toDouble()).toFloat()
     }
 
-    private fun calcGripRatio(pts3D: List<Triple<Float,Float,Float>>): Float {
+    // 히스테리시스 적용 — 굽혀진 손가락 개수 기준
+    // 3개 이상 → 쥠 / 1개 이하 → 폄 / 2개 → 이전 상태 유지 (경계 구간 노이즈 방지)
+    private fun isHandClosed(pts3D: List<Triple<Float, Float, Float>>): Boolean {
         val wrist      = pts3D[0]
         val fingerTips = listOf(8, 12, 16, 20)
         val fingerMcps = listOf(5,  9, 13, 17)
-        var ratioSum = 0f
+        var closedCount = 0
         for (i in fingerTips.indices) {
             val distTip = dist3D(wrist, pts3D[fingerTips[i]])
             val distMcp = dist3D(wrist, pts3D[fingerMcps[i]])
-            if (distMcp > 0f) ratioSum += distTip / distMcp
+            if (distTip < distMcp) closedCount++
         }
-        return ratioSum / fingerTips.size
-    }
-
-    // 히스테리시스 적용 — ratio < 0.85 → 쥠, ratio > 1.15 → 폄, 그 사이 → 이전 상태 유지
-    private fun isHandClosed(pts3D: List<Triple<Float, Float, Float>>): Boolean {
-        val ratio = calcGripRatio(pts3D)
         handIsClosedState = when {
-            ratio < CLOSED_THRESHOLD -> true
-            ratio > OPEN_THRESHOLD   -> false
-            else                     -> handIsClosedState  // 경계 구간: 상태 유지
+            closedCount >= 3 -> true
+            closedCount <= 1 -> false
+            else             -> handIsClosedState  // 2개: 이전 상태 유지
         }
         return handIsClosedState
     }
