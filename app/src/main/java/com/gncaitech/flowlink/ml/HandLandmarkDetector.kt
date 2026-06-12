@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.os.SystemClock
+import android.util.Log
 import androidx.camera.core.ImageProxy
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.tasks.core.BaseOptions
@@ -81,6 +82,7 @@ class HandLandmarkDetector(
                     val grip     = calcGripPercent(pts3D)
                     val xDiff    = pts[5].first - pts[17].first
 
+                    Log.d("GripDetect", "grip=$grip% closed=$closed xDiff=%.3f".format(xDiff))
                     onGrip(closed)
                     onGripPercent(grip)
                     onLandmarks3D(pts3D)
@@ -134,16 +136,25 @@ class HandLandmarkDetector(
         val fingerTips = listOf(8, 12, 16, 20)
         val fingerMcps = listOf(5,  9, 13, 17)
         var closedCount = 0
+        val ratios = mutableListOf<Float>()
         for (i in fingerTips.indices) {
             val distTip = dist3D(wrist, pts3D[fingerTips[i]])
             val distMcp = dist3D(wrist, pts3D[fingerMcps[i]])
+            val ratio = if (distMcp > 0f) distTip / distMcp else 1f
+            ratios.add(ratio)
             if (distTip < distMcp) closedCount++
         }
+        val prevState = handIsClosedState
         handIsClosedState = when {
             closedCount >= 3 -> true
             closedCount <= 1 -> false
-            else             -> handIsClosedState  // 2개: 이전 상태 유지
+            else             -> handIsClosedState
         }
+        Log.d("GripDetect",
+            "count=$closedCount ratios=[${ratios.joinToString { "%.2f".format(it) }}]" +
+            " | prev=${if (prevState) "CLOSED" else "OPEN"}" +
+            " → ${if (handIsClosedState) "CLOSED" else "OPEN"}"
+        )
         return handIsClosedState
     }
 

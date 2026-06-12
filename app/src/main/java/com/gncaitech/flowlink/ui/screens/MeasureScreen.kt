@@ -158,6 +158,7 @@ fun MeasureScreen(
                     if (!wasOpenState.value && !isWaitingToStart && !isCountingDown) {
                         reps++
                         val now = System.currentTimeMillis()
+                        android.util.Log.d("GripDetect", "★ REP counted | reps=$reps")
                         repTimestampsBuffer.add(now - setStartTimeMs.get())
                         val last = lastGripOpenTimeState.value
                         if (last > 0) {
