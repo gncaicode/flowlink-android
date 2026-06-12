@@ -47,8 +47,13 @@ class HandLandmarkDetector(
     private var smoothWristY = -1f
     private var curlIsUp = false
     private var wristHasGoneBack = false
-    private val WRIST_THRESHOLD = 0.10f
-    private var CURL_THRESHOLD = 0.15f
+    private val WRIST_THRESHOLD  = 0.10f
+    private var CURL_THRESHOLD   = 0.15f
+
+    // 히스테리시스 임계값 — 단일 1.0 기준 대신 두 개 사용
+    private val CLOSED_THRESHOLD = 0.85f  // ratio 이하 → 쥠
+    private val OPEN_THRESHOLD   = 1.15f  // ratio 이상 → 폄
+    private var handIsClosedState = false  // 이전 프레임 상태 유지용
 
     init {
         val baseOptions = BaseOptions.builder()
@@ -114,9 +119,9 @@ class HandLandmarkDetector(
         handLandmarker = null
     }
 
-    // 손목(0)과 각 손가락 TIP/MCP 사이의 3D 거리 비교로 구부러짐 판단
-    // dist(손목, TIP) < dist(손목, MCP) → TIP이 손목에 더 가깝다 → 굽혀진 상태 (쥠)
-    // 손의 방향(기울기, 회전)에 무관하게 동작
+    // 손목(0)과 각 손가락 TIP/MCP 사이의 3D 거리로 비율 계산
+    // ratio = mean(dist(손목,TIP) / dist(손목,MCP))
+    // ratio < 1.0 → TIP이 손목에 가깝다 → 굽혀진 상태
     private fun dist3D(a: Triple<Float,Float,Float>, b: Triple<Float,Float,Float>): Float {
         val dx = a.first  - b.first
         val dy = a.second - b.second
@@ -124,17 +129,28 @@ class HandLandmarkDetector(
         return Math.sqrt((dx*dx + dy*dy + dz*dz).toDouble()).toFloat()
     }
 
-    private fun isHandClosed(pts3D: List<Triple<Float, Float, Float>>): Boolean {
+    private fun calcGripRatio(pts3D: List<Triple<Float,Float,Float>>): Float {
         val wrist      = pts3D[0]
-        val fingerTips = listOf(8, 12, 16, 20)   // 검지~새끼 TIP
-        val fingerMcps = listOf(5,  9, 13, 17)   // 검지~새끼 MCP
-        var closedCount = 0
+        val fingerTips = listOf(8, 12, 16, 20)
+        val fingerMcps = listOf(5,  9, 13, 17)
+        var ratioSum = 0f
         for (i in fingerTips.indices) {
             val distTip = dist3D(wrist, pts3D[fingerTips[i]])
             val distMcp = dist3D(wrist, pts3D[fingerMcps[i]])
-            if (distTip < distMcp) closedCount++
+            if (distMcp > 0f) ratioSum += distTip / distMcp
         }
-        return closedCount >= 3  // 4개 중 3개 이상 굽혀지면 "쥔 상태"
+        return ratioSum / fingerTips.size
+    }
+
+    // 히스테리시스 적용 — ratio < 0.85 → 쥠, ratio > 1.15 → 폄, 그 사이 → 이전 상태 유지
+    private fun isHandClosed(pts3D: List<Triple<Float, Float, Float>>): Boolean {
+        val ratio = calcGripRatio(pts3D)
+        handIsClosedState = when {
+            ratio < CLOSED_THRESHOLD -> true
+            ratio > OPEN_THRESHOLD   -> false
+            else                     -> handIsClosedState  // 경계 구간: 상태 유지
+        }
+        return handIsClosedState
     }
 
     private fun calcGripPercent(pts3D: List<Triple<Float, Float, Float>>): Int {
