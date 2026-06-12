@@ -39,6 +39,7 @@ class PoseLandmarkDetector(
     private val onPoseFrame: ((PoseFrameData) -> Unit)? = null,
     private val onDebugInfo: ((CurlDebugInfo) -> Unit)? = null,
 ) {
+    @Volatile private var closed = false
     private var poseLandmarker: PoseLandmarker? = null
     private var curlIsUp = false
 
@@ -59,6 +60,7 @@ class PoseLandmarkDetector(
             .setMinTrackingConfidence(0.5f)
             .setRunningMode(RunningMode.LIVE_STREAM)
             .setResultListener { result: PoseLandmarkerResult, _ ->
+                if (closed) return@setResultListener
                 val pose = result.landmarks().firstOrNull() ?: return@setResultListener
                 if (pose.size < 17) return@setResultListener
 
@@ -116,6 +118,7 @@ class PoseLandmarkDetector(
     }
 
     fun detect(imageProxy: ImageProxy) {
+        if (closed) { imageProxy.close(); return }
         val bitmap = imageProxy.toBitmap()
         val rotationDegrees = imageProxy.imageInfo.rotationDegrees
         val rotatedBitmap = if (rotationDegrees != 0) {
@@ -130,6 +133,7 @@ class PoseLandmarkDetector(
     }
 
     fun close() {
+        closed = true
         poseLandmarker?.close()
         poseLandmarker = null
     }

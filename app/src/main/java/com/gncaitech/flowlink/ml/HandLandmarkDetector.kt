@@ -44,6 +44,7 @@ class HandLandmarkDetector(
     private val onWristRep: () -> Unit = {},
     private val exerciseKind: String = "grip",
 ) {
+    @Volatile private var closed = false
     private var handLandmarker: HandLandmarker? = null
     private var smoothWristY = -1f
     private var curlIsUp = false
@@ -68,6 +69,7 @@ class HandLandmarkDetector(
             .setMinTrackingConfidence(0.5f)
             .setRunningMode(RunningMode.LIVE_STREAM)
             .setResultListener { result: HandLandmarkerResult, _ ->
+                if (closed) return@setResultListener
                 val hands = result.landmarks().map { hand ->
                     hand.map { lm -> Pair(lm.x(), lm.y()) }
                 }
@@ -78,15 +80,15 @@ class HandLandmarkDetector(
                 if (hand != null && hand.size == 21) {
                     val pts      = hand.map { Pair(it.x(), it.y()) }
                     val pts3D    = hand.map { Triple(it.x(), it.y(), it.z()) }
-                    val closed   = isHandClosed(pts3D)
+                    val isClosed = isHandClosed(pts3D)
                     val grip     = calcGripPercent(pts3D)
                     val xDiff    = pts[5].first - pts[17].first
 
-                    Log.d("GripDetect", "grip=$grip% closed=$closed xDiff=%.3f".format(xDiff))
-                    onGrip(closed)
+                    Log.d("GripDetect", "grip=$grip% closed=$isClosed xDiff=${"%.3f".format(xDiff)}")
+                    onGrip(isClosed)
                     onGripPercent(grip)
                     onLandmarks3D(pts3D)
-                    onHandFrame?.invoke(HandFrameData(pts3D, grip, closed, xDiff))
+                    onHandFrame?.invoke(HandFrameData(pts3D, grip, isClosed, xDiff))
 
                     if (exerciseKind == "dumbbell") detectCurl(pts)
                     if (exerciseKind == "wrist_rotation") detectWristRotation(pts)
@@ -99,6 +101,7 @@ class HandLandmarkDetector(
     }
 
     fun detect(imageProxy: ImageProxy) {
+        if (closed) { imageProxy.close(); return }
         val bitmap = imageProxy.toBitmap()
         val rotationDegrees = imageProxy.imageInfo.rotationDegrees
 
@@ -116,6 +119,7 @@ class HandLandmarkDetector(
     }
 
     fun close() {
+        closed = true
         handLandmarker?.close()
         handLandmarker = null
     }

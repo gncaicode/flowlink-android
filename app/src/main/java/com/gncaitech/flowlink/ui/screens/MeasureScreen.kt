@@ -262,9 +262,9 @@ fun MeasureScreen(
 
     DisposableEffect(Unit) {
         onDispose {
+            executor.shutdown()
             detector.close()
             poseDetector.close()
-            executor.shutdown()
         }
     }
 
