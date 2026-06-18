@@ -37,11 +37,11 @@ private val SetupFgDim     = Color.White.copy(alpha = 0.60f)
 private val SetupFgLabel   = Color.White.copy(alpha = 0.55f)
 
 data class ExerciseConfig(
-    val totalSets: Int  = 1,
-    val targetReps: Int = 20,
-    val setSeconds: Int = 30,
+    val totalSets: Int  = 3,
+    val targetReps: Int = 15,
+    val setSeconds: Int = 150,
     val kind: String    = "grip",
-    val restSeconds: Int = 10
+    val restSeconds: Int = 30
 )
 
 @Composable
@@ -52,7 +52,7 @@ fun ExerciseSetupScreen(
     onBack: () -> Unit = {},
     onStart: () -> Unit = {},
 ) {
-    val durationOptions = listOf(30 to "30초", 60 to "1분", 90 to "1분 30초", 120 to "2분")
+    val durationOptions = listOf(60 to "1분", 90 to "1분 30초", 120 to "2분", 150 to "2분 30초", 180 to "3분")
 
     Box(
         modifier = Modifier
@@ -215,45 +215,49 @@ fun ExerciseSetupScreen(
 
             // 세트 시간
             SetupCard(title = "세트 시간") {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    durationOptions.forEach { (secs, label) ->
-                        val selected = config.setSeconds == secs
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(40.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (selected) MedTeal else Color.White.copy(alpha = 0.08f))
-                                .border(
-                                    1.dp,
-                                    if (selected) MedTeal else Color.White.copy(alpha = 0.14f),
-                                    RoundedCornerShape(10.dp)
-                                )
-                                .clickable(
-                                    indication = null,
-                                    interactionSource = remember { MutableInteractionSource() }
-                                ) { onConfigChange(config.copy(setSeconds = secs)) },
-                            contentAlignment = Alignment.Center
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    durationOptions.chunked(3).forEach { row ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text(
-                                label,
-                                style = TextStyle(
-                                    fontFamily = MontserratFamily,
-                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                                    fontSize = 11.sp,
-                                    color = if (selected) Color.White else SetupFgDim
-                                )
-                            )
+                            row.forEach { (secs, label) ->
+                                val selected = config.setSeconds == secs
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(40.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(if (selected) MedTeal else Color.White.copy(alpha = 0.08f))
+                                        .border(
+                                            1.dp,
+                                            if (selected) MedTeal else Color.White.copy(alpha = 0.14f),
+                                            RoundedCornerShape(10.dp)
+                                        )
+                                        .clickable(
+                                            indication = null,
+                                            interactionSource = remember { MutableInteractionSource() }
+                                        ) { onConfigChange(config.copy(setSeconds = secs)) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        label,
+                                        style = TextStyle(
+                                            fontFamily = MontserratFamily,
+                                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                            fontSize = 11.sp,
+                                            color = if (selected) Color.White else SetupFgDim
+                                        )
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
 
             SetupCard(title = "세트 간 휴식 시간") {
-                val restOptions = listOf(10 to "10초", 15 to "15초", 20 to "20초", 30 to "30초")
+                val restOptions = listOf(30 to "30초", 45 to "45초", 60 to "1분", 90 to "1분 30초")
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
