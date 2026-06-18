@@ -115,9 +115,9 @@ fun MeasureScreen(
     var totalRepsAcc    by remember { mutableStateOf(0) }
     var totalSecsAcc    by remember { mutableStateOf(0) }
 
-    // 덤벨컬은 후면, 공쥐기·손목회전은 전면 카메라가 기본
-    val defaultLens = if (config.kind == "dumbbell") CameraSelector.LENS_FACING_BACK
-                      else CameraSelector.LENS_FACING_FRONT
+    // 덤벨컬은 전면, 공쥐기·손목회전은 후면 카메라가 기본
+    val defaultLens = if (config.kind == "dumbbell") CameraSelector.LENS_FACING_FRONT
+                      else CameraSelector.LENS_FACING_BACK
     var lensFacing by remember { mutableIntStateOf(defaultLens) }
 
     // 세트 시계열 rawdata 버퍼 — 10 fps 샘플링, 세트 시작 시 초기화
@@ -263,6 +263,11 @@ fun MeasureScreen(
             detector.close()
             poseDetector.close()
         }
+    }
+
+    // 덤벨컬: 선택한 팔 변경 시 감지기에 즉시 반영
+    LaunchedEffect(hand) {
+        poseDetector.useRightArm = (hand == "right")
     }
 
     val repDone  = reps >= target
@@ -419,7 +424,8 @@ fun MeasureScreen(
             PoseLandmarkCanvas(
                 modifier = Modifier.fillMaxSize(),
                 landmarks = landmarks,
-                isFrontCamera = lensFacing == CameraSelector.LENS_FACING_FRONT
+                isFrontCamera = lensFacing == CameraSelector.LENS_FACING_FRONT,
+                highlightRightArm = hand == "right"
             )
             // 덤벨컬 디버그 오버레이
 //            curlDebugInfo?.let { info ->
@@ -458,7 +464,11 @@ fun MeasureScreen(
                     .background(GlassFill)
                     .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(20.dp))
             ) {
-                listOf("left" to "왼손", "right" to "오른손").forEach { (key, label) ->
+                val handLabels = if (config.kind == "dumbbell")
+                    listOf("left" to "왼팔", "right" to "오른팔")
+                else
+                    listOf("left" to "왼손", "right" to "오른손")
+                handLabels.forEach { (key, label) ->
                     val active = hand == key
                     Box(
                         modifier = Modifier
@@ -865,9 +875,10 @@ fun MeasureScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                MetricChip(label = "그립", value = "$gripPercent",  unit = "%", modifier = Modifier.weight(1f))
-                MetricChip(label = "속도", value = if (repSpeedSec > 0) "%.1f".format(repSpeedSec) else "-", unit = "s", modifier =
-                Modifier.weight(1f))
+                if (config.kind == "grip") {
+                    MetricChip(label = "그립", value = "$gripPercent", unit = "%", modifier = Modifier.weight(1f))
+                }
+                MetricChip(label = "속도", value = if (repSpeedSec > 0) "%.1f".format(repSpeedSec) else "-", unit = "s", modifier = Modifier.weight(1f))
             }
 
             // Controls
@@ -879,7 +890,7 @@ fun MeasureScreen(
                 // Pause / Play
                 Box(
                     modifier = Modifier
-                        .size(56.dp)
+                        .size(80.dp)
                         .clip(CircleShape)
                         .background(Color.White.copy(alpha = 0.12f))
                         .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape)
@@ -890,7 +901,7 @@ fun MeasureScreen(
                         imageVector = if (paused) Icons.Default.PlayArrow else Icons.Default.Pause,
                         contentDescription = if (paused) "재생" else "일시정지",
                         tint = Color.White,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(28.dp)
                     )
                 }
 
@@ -898,8 +909,8 @@ fun MeasureScreen(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .height(56.dp)
-                        .clip(RoundedCornerShape(28.dp))
+                        .height(80.dp)
+                        .clip(RoundedCornerShape(40.dp))
                         .background(
                             when {
                                 isWaitingToStart -> MedTeal
@@ -1291,7 +1302,8 @@ private fun HandLandmarkCanvas(
 private fun PoseLandmarkCanvas(
     modifier: Modifier = Modifier,
     landmarks: List<Pair<Float, Float>> = emptyList(),
-    isFrontCamera: Boolean = true
+    isFrontCamera: Boolean = true,
+    highlightRightArm: Boolean = true
 ) {
     Canvas(modifier = modifier) {
         if (landmarks.size >= 17) {
@@ -1299,6 +1311,9 @@ private fun PoseLandmarkCanvas(
                 val x = if (isFrontCamera) (1f - nx) * size.width else nx * size.width
                 Offset(x, ny * size.height)
             }
+
+            // 강조할 팔 인덱스: 오른팔(12,14,16) / 왼팔(11,13,15)
+            val highlightIndices = if (highlightRightArm) listOf(12, 14, 16) else listOf(11, 13, 15)
 
             // 상체 연결선: 어깨-어깨, 어깨-팔꿈치, 팔꿈치-손목
             val connections = listOf(
@@ -1309,10 +1324,9 @@ private fun PoseLandmarkCanvas(
 
             for ((a, b) in connections) {
                 if (a < pts.size && b < pts.size) {
-                    // 오른팔(12,14,16)은 MedTeal 강조, 나머지는 흐리게
-                    val isRightArm = (a == 12 || a == 14) && (b == 14 || b == 16)
-                    val color = if (isRightArm) MedTeal.copy(alpha = 0.9f) else MedTeal.copy(alpha = 0.4f)
-                    val sw = if (isRightArm) size.width * 0.014f else size.width * 0.008f
+                    val isHighlighted = a in highlightIndices && b in highlightIndices
+                    val color = if (isHighlighted) MedTeal.copy(alpha = 0.9f) else MedTeal.copy(alpha = 0.4f)
+                    val sw = if (isHighlighted) size.width * 0.014f else size.width * 0.008f
                     drawLine(color, pts[a], pts[b], strokeWidth = sw, cap = StrokeCap.Round)
                 }
             }
@@ -1321,9 +1335,9 @@ private fun PoseLandmarkCanvas(
             val keyPoints = listOf(11, 12, 13, 14, 15, 16)
             for (i in keyPoints) {
                 if (i >= pts.size) continue
-                val isRightArm = i in listOf(12, 14, 16)
-                val color = if (isRightArm) MedTeal else MedTeal.copy(alpha = 0.5f)
-                val r = if (isRightArm) size.width * 0.016f else size.width * 0.010f
+                val isHighlighted = i in highlightIndices
+                val color = if (isHighlighted) MedTeal else MedTeal.copy(alpha = 0.5f)
+                val r = if (isHighlighted) size.width * 0.016f else size.width * 0.010f
                 drawCircle(color.copy(alpha = 0.22f), radius = r * 1.6f, center = pts[i])
                 drawCircle(color, radius = r, center = pts[i])
             }
