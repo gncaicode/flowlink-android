@@ -45,7 +45,7 @@ class PoseLandmarkDetector(
 
     // 팔꿈치 각도 기준 (도 단위)
     private val CURL_UP_ANGLE = 80f         // 이 각도 이하 = 완전히 올린 상태
-    private val CURL_DOWN_ANGLE = 145f     // 이 각도 이상 = 완전히 내린 상태
+    private val CURL_DOWN_ANGLE = 130f     // 이 각도 이상 = 완전히 내린 상태
 
     init {
         val baseOptions = BaseOptions.builder()
