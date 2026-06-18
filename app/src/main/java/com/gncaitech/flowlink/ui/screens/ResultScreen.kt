@@ -1,5 +1,6 @@
 package com.gncaitech.flowlink.ui.screens
 
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,7 +25,9 @@ import com.gncaitech.flowlink.ui.theme.MedTeal
 import com.gncaitech.flowlink.ui.theme.MontserratFamily
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
+import com.gncaitech.flowlink.ml.SessionLogHolder
 
 private val DarkBg   = Color(0xFF0A1422)
 private val GlassFill = Color(0x66000000)
@@ -44,6 +47,7 @@ fun ResultScreen(
     kind:String = "grip",
     onBack: () -> Unit = {},
 ) {
+    val context = LocalContext.current
     val mmss = { s: Int -> "%02d:%02d".format(s / 60, s % 60)}
     val overallFeedback = when {
         totalReps >= repsTarget * setsCompleted -> "perfect"
@@ -73,7 +77,7 @@ fun ResultScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 20.dp)
-                .padding(bottom = 88.dp),
+                .padding(bottom = 140.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
@@ -184,26 +188,65 @@ fun ResultScreen(
             }
         }
 
-        // 돌아가기 버튼 — 하단 고정
-        Box(
+        // 하단 버튼 영역 — 고정
+        Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp)
-                .height(56.dp)
-                .clip(RoundedCornerShape(28.dp))
-                .background(MedTeal)
-                .clickableNoRipple { onBack() },
-            contentAlignment = Alignment.Center
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                "대상자 목록으로",
-                style = TextStyle(
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 16.sp,
-                    color = Color.White
+            // 로그 공유 버튼 (세션 로그가 있을 때만 표시)
+            if (SessionLogHolder.last != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(Color.White.copy(alpha = 0.08f))
+                        .border(1.dp, Color.White.copy(alpha = 0.20f), RoundedCornerShape(24.dp))
+                        .clickableNoRipple {
+                            SessionLogHolder.last?.let { logger ->
+                                context.startActivity(
+                                    Intent.createChooser(
+                                        logger.shareIntent(context),
+                                        "로그 파일 공유"
+                                    )
+                                )
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "로그 공유",
+                        style = TextStyle(
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp,
+                            color = Color.White.copy(alpha = 0.80f)
+                        )
+                    )
+                }
+            }
+
+            // 돌아가기 버튼
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(MedTeal)
+                    .clickableNoRipple { onBack() },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "대상자 목록으로",
+                    style = TextStyle(
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 16.sp,
+                        color = Color.White
+                    )
                 )
-            )
+            }
         }
     }
 }

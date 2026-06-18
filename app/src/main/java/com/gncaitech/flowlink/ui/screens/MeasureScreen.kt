@@ -83,6 +83,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import com.gncaitech.flowlink.network.SessionRequest
 import kotlinx.coroutines.launch
 import com.gncaitech.flowlink.ml.PoseLandmarkDetector
+import com.gncaitech.flowlink.ml.SessionLogHolder
+import com.gncaitech.flowlink.ml.SessionLogger
 import java.util.Collections
 import java.util.concurrent.atomic.AtomicLong
 
@@ -146,6 +148,8 @@ fun MeasureScreen(
 
     val executor = remember { Executors.newSingleThreadExecutor() }
 
+    val sessionLogger = remember(context) { SessionLogger(context, config.kind) }
+
     val detector = remember(context) {
         HandLandmarkDetector(
             context = context,
@@ -205,6 +209,7 @@ fun MeasureScreen(
                 }
             },
             exerciseKind = config.kind,
+            onLog = { line -> sessionLogger.append(line) },
         )
     }
 
@@ -241,7 +246,8 @@ fun MeasureScreen(
             },
             onDebugInfo = { info ->
                 curlDebugInfo = info
-            }
+            },
+            onLog = { line -> sessionLogger.append(line) },
         )
     }
 
@@ -262,6 +268,8 @@ fun MeasureScreen(
             executor.shutdown()
             detector.close()
             poseDetector.close()
+            sessionLogger.close()
+            SessionLogHolder.last = sessionLogger
         }
     }
 

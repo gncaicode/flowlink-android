@@ -42,7 +42,9 @@ class HandLandmarkDetector(
     private val onHandFrame: ((HandFrameData) -> Unit)? = null,
     private val onCurlRep: () -> Unit = {},
     private val onWristRep: () -> Unit = {},
+    private val onGripRep: () -> Unit = {},
     private val exerciseKind: String = "grip",
+    private val onLog: ((String) -> Unit)? = null,
 ) {
     @Volatile private var closed = false
     private var handLandmarker: HandLandmarker? = null
@@ -55,6 +57,27 @@ class HandLandmarkDetector(
     // 히스테리시스 — 굽혀진 손가락 개수 기준
     // 3개 이상 → 쥠 / 1개 이하 → 폄 / 2개 → 이전 상태 유지
     private var handIsClosedState = false
+
+    // Peak-Valley — Median 필터(N=3) + 4방향 상태 머신 + 최소 진폭 0.15
+    // ratio 평균: 높음(손 펼침, PEAK) → 낮음(손 쥠, VALLEY) → 높음(PEAK) = 1 REP
+    // PEAK→DESCENDING 전환 시 peakValue 기록, VALLEY→ASCENDING 전환 시 valleyValue 기록
+    // ASCENDING→PEAK 전환 시 (peakValue - valleyValue) >= MIN_AMPLITUDE 일 때만 REP 카운트
+    private val ratioBuffer = FloatArray(3) { 1.5f }
+    private var ratioBufferIdx = 0
+    private enum class PVState { PEAK, DESCENDING, VALLEY, ASCENDING }
+    private var pvState = PVState.PEAK
+    private var prevSmoothedRatio = -1f
+    private var peakValue = -1f
+    private var valleyValue = -1f
+    private val MIN_AMPLITUDE = 0.15f
+    private val MIN_ASCENT    = 0.08f  // ASCENDING→PEAK 시 valley 대비 최소 상승폭
+
+    // 진단용
+    private var valleyMinRatio  = Float.MAX_VALUE  // VALLEY 상태에서 관측된 실제 최솟값
+    private var ascentMaxRatio  = -1f              // ASCENDING 상태에서 관측된 실제 최댓값
+    private var stateFrameCount = 0                // 현재 상태 체류 프레임 수
+    private var repCount        = 0                // 내부 카운터 (로그용)
+    private var frameCount      = 0                // 전체 프레임 카운터
 
     init {
         val baseOptions = BaseOptions.builder()
@@ -84,13 +107,13 @@ class HandLandmarkDetector(
                     val grip     = calcGripPercent(pts3D)
                     val xDiff    = pts[5].first - pts[17].first
 
-                    Log.d("GripDetect", "grip=$grip% closed=$isClosed xDiff=${"%.3f".format(xDiff)}")
                     onGrip(isClosed)
                     onGripPercent(grip)
                     onLandmarks3D(pts3D)
                     onHandFrame?.invoke(HandFrameData(pts3D, grip, isClosed, xDiff))
 
-                    if (exerciseKind == "dumbbell") detectCurl(pts)
+                    if (exerciseKind == "grip")           detectGripRep(pts3D)
+                    if (exerciseKind == "dumbbell")       detectCurl(pts)
                     if (exerciseKind == "wrist_rotation") detectWristRotation(pts)
                 }
             }
@@ -154,11 +177,6 @@ class HandLandmarkDetector(
             closedCount <= 1 -> false
             else             -> handIsClosedState
         }
-        Log.d("GripDetect",
-            "count=$closedCount ratios=[${ratios.joinToString { "%.2f".format(it) }}]" +
-            " | prev=${if (prevState) "CLOSED" else "OPEN"}" +
-            " → ${if (handIsClosedState) "CLOSED" else "OPEN"}"
-        )
         return handIsClosedState
     }
 
@@ -173,6 +191,173 @@ class HandLandmarkDetector(
             if (distTip < distMcp) count++
         }
         return (count * 100) / 4
+    }
+
+    // Median 필터 (N=3) — 순간 스파이크 제거, 분기 없는 3-정렬
+    private fun medianFilter(value: Float): Float {
+        ratioBuffer[ratioBufferIdx % 3] = value
+        ratioBufferIdx++
+        val a = ratioBuffer[0]; val b = ratioBuffer[1]; val c = ratioBuffer[2]
+        return maxOf(minOf(a, b), minOf(maxOf(a, b), c))
+    }
+
+    // 4개 손가락 TIP/MCP ratio 평균 (낮을수록 더 쥔 상태)
+    private fun calcAvgRatio(pts3D: List<Triple<Float, Float, Float>>): Float {
+        val wrist      = pts3D[0]
+        val fingerTips = listOf(8, 12, 16, 20)
+        val fingerMcps = listOf(5,  9, 13, 17)
+        var sum = 0f
+        for (i in fingerTips.indices) {
+            val distTip = dist3D(wrist, pts3D[fingerTips[i]])
+            val distMcp = dist3D(wrist, pts3D[fingerMcps[i]])
+            sum += if (distMcp > 0f) distTip / distMcp else 1f
+        }
+        return sum / 4f
+    }
+
+    private fun logLine(tag: String, msg: String) {
+        Log.d(tag, msg)
+        onLog?.invoke("$tag: $msg")
+    }
+
+    // Peak-Valley grip 1회 감지
+    // PEAK → DESCENDING → VALLEY → ASCENDING → PEAK 사이클 완성 시 onGripRep() 호출
+    private fun detectGripRep(pts3D: List<Triple<Float, Float, Float>>) {
+        frameCount++
+
+        // ── 개별 ratio 계산 (검지/중지/약지/새끼) ──────────────────────────
+        val wrist  = pts3D[0]
+        val tipIdx = listOf(8, 12, 16, 20)
+        val mcpIdx = listOf(5,  9, 13, 17)
+        val ratios = tipIdx.indices.map { i ->
+            val dt = dist3D(wrist, pts3D[tipIdx[i]])
+            val dm = dist3D(wrist, pts3D[mcpIdx[i]])
+            if (dm > 0f) dt / dm else 1f
+        }
+        val rawAvg   = ratios.sum() / 4f
+        val smoothed = medianFilter(rawAvg)
+
+        // ── 신호 로그 (매 프레임) ────────────────────────────────────────────
+        logLine("GripPV",
+            "ratios=[${ratios.joinToString { "%.3f".format(it) }}]" +
+            " raw=${"%.3f".format(rawAvg)}" +
+            " smoothed=${"%.3f".format(smoothed)}" +
+            " state=$pvState"
+        )
+
+        // ── 초기화 (첫 프레임) ───────────────────────────────────────────────
+        if (prevSmoothedRatio < 0f) {
+            prevSmoothedRatio = smoothed
+            logLine("GripPV", "초기화: prevSmoothed=${"%.3f".format(smoothed)}")
+            return
+        }
+
+        val diff      = smoothed - prevSmoothedRatio
+        val prevState = pvState
+
+        // ── 상태별 실시간 최솟값/최댓값 추적 ────────────────────────────────
+        if (pvState == PVState.VALLEY) {
+            if (smoothed < valleyMinRatio) valleyMinRatio = smoothed
+        }
+        if (pvState == PVState.ASCENDING) {
+            if (smoothed > ascentMaxRatio) ascentMaxRatio = smoothed
+        }
+
+        // ── 상태 전환 ────────────────────────────────────────────────────────
+        when (pvState) {
+            PVState.PEAK       -> if (diff < 0f) {
+                peakValue = prevSmoothedRatio
+                pvState = PVState.DESCENDING
+                stateFrameCount = 0
+                valleyMinRatio = Float.MAX_VALUE
+            }
+            PVState.DESCENDING -> if (diff >= 0f) {
+                pvState = PVState.VALLEY
+                stateFrameCount = 0
+                valleyMinRatio = smoothed
+            }
+            PVState.VALLEY     -> if (diff > 0f) {
+                valleyValue = prevSmoothedRatio
+                pvState = PVState.ASCENDING
+                stateFrameCount = 0
+                ascentMaxRatio = smoothed
+                // VALLEY 요약 로그
+                logLine("GripPV",
+                    "▼VALLEY 요약" +
+                    " | valleyValue=${"%.3f".format(valleyValue)}" +
+                    " | 실제최솟값=${"%.3f".format(valleyMinRatio)}" +
+                    " | peakValue=${"%.3f".format(peakValue)}" +
+                    " | 예상진폭=${"%.3f".format(peakValue - valleyValue)}" +
+                    " | 필요진폭=${"%.3f".format(MIN_AMPLITUDE)}" +
+                    if (peakValue - valleyValue >= MIN_AMPLITUDE) " ✓진폭OK" else " ✗진폭부족"
+                )
+            }
+            PVState.ASCENDING  -> if (diff <= 0f) {
+                val amplitude = peakValue - valleyValue
+                val ascent    = prevSmoothedRatio - valleyValue
+                // ASCENDING 요약 로그 (카운트 여부와 무관하게 항상 출력)
+                logLine("GripPV",
+                    "▲ASCENDING 요약" +
+                    " | valleyValue=${"%.3f".format(valleyValue)}" +
+                    " | 실제최댓값=${"%.3f".format(ascentMaxRatio)}" +
+                    " | 판정시점값=${"%.3f".format(prevSmoothedRatio)}" +
+                    " | ascent=${"%.3f".format(ascent)}" +
+                    " | amplitude=${"%.3f".format(amplitude)}" +
+                    " | 필요ascent=${"%.3f".format(MIN_ASCENT)}" +
+                    " | 필요amplitude=${"%.3f".format(MIN_AMPLITUDE)}"
+                )
+                if (amplitude >= MIN_AMPLITUDE && ascent >= MIN_ASCENT) {
+                    pvState = PVState.PEAK
+                    repCount++
+                    onGripRep()
+                    logLine("GripPV", "★★★ REP #$repCount 카운트! amplitude=${"%.3f".format(amplitude)} ascent=${"%.3f".format(ascent)}")
+                } else {
+                    pvState = PVState.PEAK
+                    val reason = when {
+                        amplitude < MIN_AMPLITUDE && ascent < MIN_ASCENT ->
+                            "진폭부족(${" %.3f".format(amplitude)}<${MIN_AMPLITUDE}) AND 상승부족(${"%.3f".format(ascent)}<${MIN_ASCENT})"
+                        amplitude < MIN_AMPLITUDE ->
+                            "진폭부족(${"%.3f".format(amplitude)}<${MIN_AMPLITUDE}) — 더 깊이 쥐어야 함"
+                        else ->
+                            "상승부족(${"%.3f".format(ascent)}<${MIN_ASCENT}) — 더 많이 펴야 함"
+                    }
+                    logLine("GripPV", "✗ REP 거부: $reason")
+                }
+                stateFrameCount = 0
+            }
+        }
+
+        stateFrameCount++
+
+        // ── 상태 전환 로그 ───────────────────────────────────────────────────
+        if (prevState != pvState) {
+            logLine("GripPV",
+                "→전환 $prevState → $pvState" +
+                " | diff=${"%.3f".format(diff)}" +
+                " smoothed=${"%.3f".format(smoothed)}" +
+                " peak=${"%.3f".format(peakValue)}" +
+                " valley=${"%.3f".format(valleyValue)}"
+            )
+        }
+
+        // ── 주기 로그 (30프레임마다) — 상태 머신이 어디서 멈춰있는지 확인 ──
+        if (frameCount % 30 == 0) {
+            val stuckInfo = when (pvState) {
+                PVState.VALLEY -> " 실제최솟값=${"%.3f".format(valleyMinRatio)} 예상진폭=${"%.3f".format(peakValue - valleyMinRatio)}"
+                PVState.ASCENDING -> " 현재ascent=${"%.3f".format(smoothed - valleyValue)} 실제최댓값=${"%.3f".format(ascentMaxRatio)}"
+                else -> ""
+            }
+            logLine("GripPV",
+                "◆상태[$frameCount] $pvState ($stateFrameCount 프레임째)" +
+                " smoothed=${"%.3f".format(smoothed)}" +
+                " peak=${"%.3f".format(peakValue)}" +
+                " valley=${"%.3f".format(valleyValue)}" +
+                " reps=$repCount" +
+                stuckInfo
+            )
+        }
+
+        prevSmoothedRatio = smoothed
     }
 
     private fun detectCurl(pts:List<Pair<Float,Float>>) {
