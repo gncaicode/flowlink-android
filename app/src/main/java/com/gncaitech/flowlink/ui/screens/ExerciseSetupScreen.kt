@@ -41,7 +41,7 @@ data class ExerciseConfig(
     val targetReps: Int = 15,
     val setSeconds: Int = 150,
     val kind: String    = "grip",
-    val restSeconds: Int = 30
+    val restSeconds: Int = 60
 )
 
 @Composable
