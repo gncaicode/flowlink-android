@@ -115,7 +115,10 @@ fun MeasureScreen(
     var totalRepsAcc    by remember { mutableStateOf(0) }
     var totalSecsAcc    by remember { mutableStateOf(0) }
 
-    var lensFacing by remember { mutableIntStateOf(CameraSelector.LENS_FACING_BACK) }
+    // 덤벨컬은 후면, 공쥐기·손목회전은 전면 카메라가 기본
+    val defaultLens = if (config.kind == "dumbbell") CameraSelector.LENS_FACING_BACK
+                      else CameraSelector.LENS_FACING_FRONT
+    var lensFacing by remember { mutableIntStateOf(defaultLens) }
 
     // 세트 시계열 rawdata 버퍼 — 10 fps 샘플링, 세트 시작 시 초기화
     // 각 항목은 pre-serialized JSON 문자열: [t_ms, [...landmarks...], ...computed_values]
@@ -128,8 +131,6 @@ fun MeasureScreen(
     val landmarksState = remember { mutableStateOf<List<Pair<Float, Float>>>(emptyList()) }
     var landmarks by landmarksState
     var curlDebugInfo by remember { mutableStateOf<com.gncaitech.flowlink.ml.CurlDebugInfo?>(null) }
-    val wasOpenState = remember { mutableStateOf(true) }
-    var wasOpen by wasOpenState
     val gripPercentState = remember { mutableStateOf(0) }
     var gripPercent by gripPercentState
     var repSpeedSec by remember { mutableStateOf(0.0f) }
@@ -151,22 +152,18 @@ fun MeasureScreen(
             onResult = { handList ->
                 landmarksState.value = handList.firstOrNull() ?: emptyList()
             },
-            onGrip = { isClosed ->
-                if (isClosed) {
-                    wasOpenState.value = false
-                } else {
-                    if (!wasOpenState.value && !isWaitingToStart && !isCountingDown) {
+            onGrip = {},
+            onGripRep = {
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    if (!isWaitingToStart && !isCountingDown) {
                         reps++
                         val now = System.currentTimeMillis()
-                        android.util.Log.d("GripDetect", "★ REP counted | reps=$reps")
+                        android.util.Log.d("GripPV", "★ REP counted | reps=$reps")
                         repTimestampsBuffer.add(now - setStartTimeMs.get())
                         val last = lastGripOpenTimeState.value
-                        if (last > 0) {
-                            repSpeedSec = (now - last) / 1000f
-                        }
+                        if (last > 0) repSpeedSec = (now - last) / 1000f
                         lastGripOpenTimeState.value = now
                     }
-                    wasOpenState.value = true
                 }
             },
             onGripPercent = { percent ->
