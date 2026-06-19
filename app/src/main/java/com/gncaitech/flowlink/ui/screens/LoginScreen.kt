@@ -245,7 +245,7 @@ fun LoginScreen(
                     fontWeight = FontWeight.Medium,
                 ),
                 modifier = Modifier.clickable {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("http://flowlink.gncaitech.com/"))
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("http://flowlink.gncaitech.com/login"))
                     context.startActivity(intent)
                 }
             )
