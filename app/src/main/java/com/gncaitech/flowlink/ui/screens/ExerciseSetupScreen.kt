@@ -51,6 +51,7 @@ fun ExerciseSetupScreen(
     onConfigChange: (ExerciseConfig) -> Unit = {},
     onBack: () -> Unit = {},
     onStart: () -> Unit = {},
+    onGuideVideo: (kind: String) -> Unit = {},
 ) {
     val durationOptions = listOf(60 to "1분", 90 to "1분 30초", 120 to "2분", 150 to "2분 30초", 180 to "3분")
 
@@ -185,6 +186,31 @@ fun ExerciseSetupScreen(
                             )
                         }
                     }
+                }
+
+                // 가이드 영상 버튼
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(36.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color.White.copy(alpha = 0.05f))
+                        .border(1.dp, MedTeal.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) { onGuideVideo(config.kind) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "가이드 영상 보기",
+                        style = TextStyle(
+                            fontFamily = MontserratFamily,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 12.sp,
+                            color = MedTeal.copy(alpha = 0.80f)
+                        )
+                    )
                 }
             }
 

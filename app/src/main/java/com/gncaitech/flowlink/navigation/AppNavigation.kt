@@ -8,12 +8,14 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.gncaitech.flowlink.network.AuthTokenHolder
-import com.gncaitech.flowlink.network.LoginRequest
 import com.gncaitech.flowlink.network.PatientDto
+import com.gncaitech.flowlink.network.PatientLoginRequest
+import com.gncaitech.flowlink.network.PatientMeDto
 import com.gncaitech.flowlink.network.authApi
 import com.gncaitech.flowlink.ui.screens.ForgotPasswordScreen
 import com.gncaitech.flowlink.ui.screens.LoginScreen
 import com.gncaitech.flowlink.ui.screens.MeasureScreen
+import com.gncaitech.flowlink.ui.screens.PatientHomeScreen
 import com.gncaitech.flowlink.ui.screens.SplashScreen
 import com.gncaitech.flowlink.ui.screens.SubjectRegisterScreen
 import com.gncaitech.flowlink.ui.screens.SubjectSelectScreen
@@ -23,6 +25,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import com.gncaitech.flowlink.ui.screens.ExerciseConfig
 import com.gncaitech.flowlink.ui.screens.ExerciseSetupScreen
+import com.gncaitech.flowlink.ui.screens.GuideVideoScreen
 import com.gncaitech.flowlink.ui.screens.PatientDetailScreen
 import com.gncaitech.flowlink.ui.screens.ResultScreen
 import com.gncaitech.flowlink.ui.screens.WithCameraPermission
@@ -34,6 +37,7 @@ fun AppNavigation() {
 
     //NavHost 바로 위에 추가
     var selectedPatient     by remember { mutableStateOf<PatientDto?>(null) }
+    var loggedInPatientId   by remember { mutableIntStateOf(-1) }
     var exerciseConfig      by remember { mutableStateOf(ExerciseConfig()) }
     var resultTotalReps     by remember { mutableIntStateOf(0) }
     var resultTotalSeconds  by remember { mutableIntStateOf(0) }
@@ -47,28 +51,34 @@ fun AppNavigation() {
 
             LaunchedEffect(Unit) {
                 delay(2000)
-                val prefs = context.getSharedPreferences("fl_prefs",android.content.Context.MODE_PRIVATE)
-                val autoLogin = prefs.getBoolean("auto_login", false)
-                val savedEmail = prefs.getString("save_email", null)
+                val prefs = context.getSharedPreferences("fl_prefs", android.content.Context.MODE_PRIVATE)
+                val autoLogin    = prefs.getBoolean("auto_login", false)
+                val savedPid     = prefs.getString("save_pid", null)
                 val savedPassword = prefs.getString("save_password", null)
 
-                if (autoLogin && savedEmail != null && savedPassword != null) {
-                    try{
-                        val res = authApi.login(LoginRequest(savedEmail,savedPassword))
-                        if(res.isSuccessful) {
-                            AuthTokenHolder.token = res.body()?.token
-                            navController.navigate("subject_select") {
+                if (autoLogin && savedPid != null && savedPassword != null) {
+                    try {
+                        val res = authApi.patientLogin(PatientLoginRequest(savedPid, savedPassword))
+                        if (res.isSuccessful) {
+                            val body = res.body()
+                            AuthTokenHolder.token = body?.token
+                            val patientId = body?.patientId ?: -1
+                            loggedInPatientId = patientId
+                            prefs.edit()
+                                .putInt("saved_patient_id", patientId)
+                                .putString("saved_patient_name", body?.name)
+                                .putString("saved_patient_pid", body?.pid)
+                                .apply()
+                            navController.navigate("patient_home") {
                                 popUpTo("splash") { inclusive = true }
                             }
                         } else {
-                            // 로그인 실패 (비밀번호 변경 등 ) -> 저장 정보 삭제 후 로그인으로
                             prefs.edit().clear().apply()
                             navController.navigate("login") {
-                                popUpTo("splash") {inclusive = true}
+                                popUpTo("splash") { inclusive = true }
                             }
                         }
                     } catch (e: Exception) {
-                        //서버 오류
                         navController.navigate("login") {
                             popUpTo("splash") { inclusive = true }
                         }
@@ -83,13 +93,45 @@ fun AppNavigation() {
         }
 
         composable("login") {
+            val context = androidx.compose.ui.platform.LocalContext.current
             LoginScreen(
                 onNavigateToForgotPassword = {
                     navController.navigate("forgot_password")
                 },
-                onNavigateToSubjectSelect = {
-                    navController.navigate("subject_select"){
+                onNavigateToPatientHome = {
+                    val prefs = context.getSharedPreferences("fl_prefs", android.content.Context.MODE_PRIVATE)
+                    loggedInPatientId = prefs.getInt("saved_patient_id", -1)
+                    navController.navigate("patient_home") {
                         popUpTo("login") { inclusive = true }
+                    }
+                },
+            )
+        }
+
+        composable("patient_home") {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            PatientHomeScreen(
+                patientId = loggedInPatientId,
+                onNavigateToSetup = { patientMe ->
+                    selectedPatient = PatientDto(
+                        id       = patientMe.id.toString(),
+                        pid      = patientMe.pid,
+                        name     = patientMe.name,
+                        age      = patientMe.age,
+                        gender   = patientMe.gender,
+                        surgeryData = null,
+                        program  = patientMe.program,
+                        scheduled = patientMe.scheduled,
+                        status   = null,
+                    )
+                    navController.navigate("setup")
+                },
+                onLogout = {
+                    val prefs = context.getSharedPreferences("fl_prefs", android.content.Context.MODE_PRIVATE)
+                    prefs.edit().clear().apply()
+                    AuthTokenHolder.token = null
+                    navController.navigate("login") {
+                        popUpTo("patient_home") { inclusive = true }
                     }
                 },
             )
@@ -149,7 +191,16 @@ fun AppNavigation() {
                 config = exerciseConfig,
                 onConfigChange = { exerciseConfig = it },
                 onBack = { navController.popBackStack() },
-                onStart = { navController.navigate("measure") }
+                onStart = { navController.navigate("measure") },
+                onGuideVideo = { kind -> navController.navigate("guide/$kind") }
+            )
+        }
+
+        composable("guide/{kind}") { backStackEntry ->
+            val kind = backStackEntry.arguments?.getString("kind") ?: "grip"
+            GuideVideoScreen(
+                kind = kind,
+                onBack = { navController.popBackStack() }
             )
         }
 
@@ -180,7 +231,7 @@ fun AppNavigation() {
                 totalSeconds    = resultTotalSeconds,
                 kind            = exerciseConfig.kind,
                 onBack = {
-                    navController.navigate("subject_select") {
+                    navController.navigate("patient_home") {
                         popUpTo("result") { inclusive = true }
                     }
                 }
