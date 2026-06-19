@@ -67,6 +67,9 @@ fun LoginScreen(
     onNavigateToPatientHome: () -> Unit = {},
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val versionName = remember {
+        context.packageManager.getPackageInfo(context.packageName, 0).versionName
+    }
 
     var userId by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -217,17 +220,6 @@ fun LoginScreen(
                 )
             }
 
-            Spacer(Modifier.height(32.dp))
-
-            Text(
-                "비밀번호 찾기",
-                style = TextStyle(
-                    fontSize = 13.sp,
-                    color = NavyLight,
-                    fontWeight = FontWeight.Medium
-                ),
-                modifier = Modifier.clickable { onNavigateToForgotPassword() }
-            )
         }
 
         // Bottom: 관리자 로그인 + copyright
@@ -248,6 +240,11 @@ fun LoginScreen(
                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse("http://flowlink.gncaitech.com/login"))
                     context.startActivity(intent)
                 }
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "v$versionName",
+                style = TextStyle(fontSize = 11.sp, color = G500)
             )
         }
     }
