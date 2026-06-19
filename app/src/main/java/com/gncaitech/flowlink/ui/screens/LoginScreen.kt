@@ -47,7 +47,6 @@ import com.gncaitech.flowlink.ui.components.FlTextField
 import com.gncaitech.flowlink.ui.theme.G500
 import com.gncaitech.flowlink.ui.theme.G700
 import com.gncaitech.flowlink.ui.theme.MedTeal
-import com.gncaitech.flowlink.ui.theme.MontserratFamily
 import com.gncaitech.flowlink.ui.theme.Navy
 import com.gncaitech.flowlink.ui.theme.NavyLight
 import androidx.compose.ui.text.input.KeyboardType
@@ -55,16 +54,17 @@ import com.gncaitech.flowlink.ui.theme.SnowGray
 import androidx.compose.foundation.border
 import androidx.compose.runtime.rememberCoroutineScope
 import com.gncaitech.flowlink.network.AuthTokenHolder
-import com.gncaitech.flowlink.network.LoginRequest
-import com.gncaitech.flowlink.network.LoginResponse
+import com.gncaitech.flowlink.network.PatientLoginRequest
 import com.gncaitech.flowlink.network.authApi
 import com.gncaitech.flowlink.ui.theme.ArtRed
+import android.content.Intent
+import android.net.Uri
 import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(
     onNavigateToForgotPassword: () -> Unit = {},
-    onNavigateToSubjectSelect: () -> Unit = {},
+    onNavigateToPatientHome: () -> Unit = {},
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
 
@@ -106,7 +106,7 @@ fun LoginScreen(
                 value = userId,
                 onValueChange = { userId = it },
                 leadingIcon = Icons.Default.Person,
-                keyboardType = KeyboardType.Email,
+                keyboardType = KeyboardType.Text,
             )
 
             Spacer(Modifier.height(16.dp))
@@ -176,18 +176,24 @@ fun LoginScreen(
                             isLoading = true
                             errorMessage = null
                             try {
-                                val res = authApi.login(LoginRequest(userId, password))
+                                val res = authApi.patientLogin(PatientLoginRequest(userId, password))
                                 if (res.isSuccessful) {
-                                    AuthTokenHolder.token = res.body()?.token
-                                    if(autoLogin) {
-                                        val prefs = context.getSharedPreferences("fl_prefs",android.content.Context.MODE_PRIVATE)
+                                    val body = res.body()
+                                    AuthTokenHolder.token = body?.token
+                                    val prefs = context.getSharedPreferences("fl_prefs", android.content.Context.MODE_PRIVATE)
+                                    prefs.edit()
+                                        .putInt("saved_patient_id", body?.patientId ?: -1)
+                                        .putString("saved_patient_name", body?.name)
+                                        .putString("saved_patient_pid", body?.pid)
+                                        .apply()
+                                    if (autoLogin) {
                                         prefs.edit()
-                                            .putString("save_email",userId)
-                                            .putString("save_password",password)
-                                            .putBoolean("auto_login",true)
+                                            .putString("save_pid", userId)
+                                            .putString("save_password", password)
+                                            .putBoolean("auto_login", true)
                                             .apply()
                                     }
-                                    onNavigateToSubjectSelect()
+                                    onNavigateToPatientHome()
                                 } else {
                                     errorMessage = "아이디 또는 비밀번호가 올바르지 않습니다."
                                 }
@@ -224,22 +230,24 @@ fun LoginScreen(
             )
         }
 
-        // Bottom security badge
-        Row(
+        // Bottom: 관리자 로그인 + copyright
+        Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 36.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(bottom = 28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                "2025 GNCAI",
+                "관리자 로그인",
                 style = TextStyle(
-                    fontFamily = MontserratFamily,
+                    fontSize = 12.sp,
+                    color = NavyLight,
                     fontWeight = FontWeight.Medium,
-                    fontSize = 11.sp,
-                    color = G500,
-                    letterSpacing = 0.04.sp,
-                )
+                ),
+                modifier = Modifier.clickable {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("http://flowlink.gncaitech.com/"))
+                    context.startActivity(intent)
+                }
             )
         }
     }
